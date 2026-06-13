@@ -1,0 +1,6 @@
+Flask
+markdown
+python-frontmatter
+Jinja2
+MarkupSafe
+Pygments
