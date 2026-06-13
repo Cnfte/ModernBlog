@@ -49,6 +49,11 @@ ModernBlogPanel 是一款基于 Python + Flask 的静态博客生成系统，内
 
 ### 安装依赖
 
+先git本项目源码至本地
+
+```bash
+git clone https://github.com/Cnfte/ModernBlog.git
+```
 在项目根目录执行以下命令安装所需 Python 库：
 
 ```bash
