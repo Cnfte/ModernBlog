@@ -26,7 +26,7 @@
 
 ## 一、项目简介
 
-ModernBlogPanel 是一款基于 Python + Flask 的静态博客生成系统，内置 Web 后台管理界面，无需数据库，无需服务器端渲染，最终产物为纯静态 HTML 文件，可直接部署到 GitHub Pages、Cloudflare Pages 等任意静态托管平台。
+ModernBlogPanel 是一款基于 Python + Flask 的静态博客生成系统，内置 Web 后台管理界面，无需数据库，无需服务器端渲染，最终产物为纯静态 HTML 文件，可直接部署到 GitHub Pages、Cloudflare Pages 等任意静态托管平台，无需像hexo那般面对黑乎乎的终端，只需简单几步即可获得动态博客般的后台管理体验，小白轻松上手。
 
 核心特性如下：
 
