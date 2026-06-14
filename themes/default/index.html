@@ -161,7 +161,11 @@
             position: fixed;
             inset: 0;
             z-index: -2;
-            background:url('{{ config.bg_url | default("https://cnfte.top/attachments/bj.webp") }}') center/cover no-repeat;
+            {% if config.bg_url %}
+            background:url('{{ config.bg_url }}') center/cover no-repeat;
+            {% else %}
+            background: linear-gradient(135deg, #0c0c1a 0%, #06060f 60%, #04040a 100%);
+            {% endif %}
             will-change: transform;
             transform: translateZ(0);
         }
@@ -450,6 +454,7 @@
             align-items: flex-end;
             box-shadow: var(--shadow);
             animation: cardIn .7s var(--ease) both;
+            background: linear-gradient(135deg, #14142a 0%, #06060f 60%, #04040a 100%);
         }
 
         .hero-img {
@@ -753,6 +758,26 @@
             inset: 0;
             background: linear-gradient(to right, transparent 60%, rgba(6, 6, 15, .4));
         }
+
+        /* ── 无配图占位：羽毛笔 + 互动水波 ── */
+        .media-empty {
+            position: absolute; inset: 0; z-index: -1;
+            background: #04040a;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden;
+        }
+        .media-empty .ripple-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+            touch-action: none;
+        }
+        .media-empty .feather-icon {
+            position: relative; z-index: 1;
+            color: rgba(255, 255, 255, .14);
+            pointer-events: none;
+            filter: drop-shadow(0 0 24px rgba(153, 204, 255, .12));
+        }
+        .post-cover .media-empty .feather-icon { font-size: 2.3rem; }
+        .post-hero .media-empty .feather-icon { font-size: 4.2rem; }
 
         .post-content {
             padding: 22px 26px;
@@ -1626,13 +1651,14 @@
 
     <div id="hero-wrap">
         <header id="site-hero" class="hero">
+            {% if config.hero_bg_url or config.bg_url %}
             {# FIX: image-explicit-size — 为 hero-img 添加 width/height 属性防止 CLS #}
-            <img src="{{ config.hero_bg_url | default(config.bg_url) | default('https://cnfte.top/attachments/bj.webp') }}"
+            <img src="{{ config.hero_bg_url | default(config.bg_url, true) }}"
                 class="hero-img"
                 alt="{{ config.site_name }} 背景"
                 width="1920" height="1080"
                 fetchpriority="high">
-            <div class="hero-gradient" aria-hidden="true"></div>
+            {% endif %}            <div class="hero-gradient" aria-hidden="true"></div>
             <div class="hero-layout">
                 <div class="hero-text">
                     <h1>{{ config.hero_title }}</h1>
@@ -1676,13 +1702,19 @@
             {% for p in posts %}
             <article class="post-card" style="animation-delay:{{ loop.index0 * 0.07 }}s">
                 <div class="post-cover">
-                    {# FIX: image-explicit-size — 卡片封面图指定 width/height，防止 layout shift
-                       dmoe.cc 随机图无法在服务端知道实际尺寸，填写展示容器尺寸即可 #}
-                    <img src="https://www.dmoe.cc/random.php?v={{ p.uid }}"
+                    {% if p.bg_url %}
+                    {# FIX: image-explicit-size — 卡片封面图指定 width/height，防止 layout shift #}
+                    <img src="{{ p.bg_url }}"
                         loading="lazy"
                         alt="{{ p.title }} 封面"
                         width="300" height="200"
                         decoding="async">
+                    {% else %}
+                    <div class="media-empty" aria-hidden="true">
+                        <canvas class="ripple-canvas"></canvas>
+                        <i class="fas fa-feather-alt feather-icon"></i>
+                    </div>
+                    {% endif %}
                     <div class="post-cover-overlay" aria-hidden="true"></div>
                 </div>
                 <div class="post-content">
@@ -1873,7 +1905,67 @@
                 } catch { el.textContent = '— 网络异常，语录休眠中 —'; }
             })();
         }
-        initClock(); initDays(); initHitokoto();
+
+        /* ─── 无配图占位：互动水波 ─── */
+        function initRippleCanvases() {
+            document.querySelectorAll('.media-empty .ripple-canvas').forEach(canvas => {
+                if (canvas._rippleInit) return;
+                canvas._rippleInit = true;
+                const ctx = canvas.getContext('2d');
+                const host = canvas.parentElement;
+                let ripples = [], raf = null, w = 0, h = 0;
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+                function resize() {
+                    const rect = host.getBoundingClientRect();
+                    w = rect.width; h = rect.height;
+                    canvas.width = Math.max(1, Math.round(w * dpr));
+                    canvas.height = Math.max(1, Math.round(h * dpr));
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+                resize();
+                new ResizeObserver(resize).observe(host);
+
+                function pos(e) {
+                    const rect = canvas.getBoundingClientRect();
+                    const p = e.touches ? e.touches[0] : e;
+                    return [p.clientX - rect.left, p.clientY - rect.top];
+                }
+                function addRipple(x, y, big) {
+                    ripples.push({ x, y, r: 0, alpha: big ? .6 : .4 });
+                    if (!raf) raf = requestAnimationFrame(loop);
+                }
+                let lastMove = 0;
+                host.addEventListener('pointermove', e => {
+                    const now = Date.now();
+                    if (now - lastMove < 90) return;
+                    lastMove = now;
+                    const [x, y] = pos(e);
+                    addRipple(x, y, false);
+                }, { passive: true });
+                host.addEventListener('pointerdown', e => {
+                    const [x, y] = pos(e);
+                    addRipple(x, y, true);
+                });
+
+                function loop() {
+                    ctx.clearRect(0, 0, w, h);
+                    ripples = ripples.filter(r => r.alpha > .01);
+                    ripples.forEach(r => {
+                        r.r += 1.6;
+                        r.alpha *= .965;
+                        ctx.beginPath();
+                        ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgba(153,204,255,${r.alpha.toFixed(3)})`;
+                        ctx.lineWidth = 1.4;
+                        ctx.stroke();
+                    });
+                    raf = ripples.length ? requestAnimationFrame(loop) : null;
+                }
+            });
+        }
+
+        initClock(); initDays(); initHitokoto(); initRippleCanvases();
 
         // ── 搜索 ──
         let searchData = null, searchReady = false, searchLoading = false, debounceTimer;
@@ -1998,7 +2090,7 @@
         }
 
         function reinitPage() {
-            initClock(); initDays(); initHitokoto();
+            initClock(); initDays(); initHitokoto(); initRippleCanvases();
             const si = document.getElementById('search-input');
             if (si) si._bound = false;
             const sb = document.getElementById('search-toggle');
