@@ -554,7 +554,7 @@ git push -f origin main
 
 ## LICENSE
 
-**本项目采用`GNU GENERAL PUBLIC LICENSE Version 3`二改请严格遵守本协议执行，未经允许禁止使用本工具盈利或商用，违者依法追究**
+**本项目采用`GNU GENERAL PUBLIC LICENSE Version 3 (GPL-3.0 license)`二改请严格遵守本协议执行，未经允许禁止使用本工具盈利或商用，违者依法追究**
 | 权限          | 局限性     | 条件                  |
 |---------------|------------|-----------------------|
 | ✓ 商业用途   | ✗ 责任    | ① 许可与版权声明    |
