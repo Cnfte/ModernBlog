@@ -403,14 +403,14 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
         <div><label class="field-label">SEO 描述</label><input data-cfg="site_description"></div>
       </div>
       <div class="field-row">
-        <div><label class="field-label">背景图 URL（全站默认/文章页）</label><input data-cfg="bg_url"></div>
+        <div><label class="field-label">背景图 URL（全站默认背景）</label><input data-cfg="bg_url"></div>
         <div><label class="field-label">OG 封面图 URL</label><input data-cfg="og_image"></div>
       </div>
       <div class="field-row">
         <div><label class="field-label">首页 Hero 背景图 URL（留空则使用上方默认背景）</label><input data-cfg="hero_bg_url"></div>
       </div>
       <div class="field-row">
-        <div style="flex:1 1 100%"><label class="field-label">文章随机背景图（每行一个 URL，构建时为每篇文章随机分配一张，或是直接写一或多条随机图API的地址）</label><textarea data-cfg="post_bg_urls" rows="4" style="width:100%"></textarea></div>
+        <div style="flex:1 1 100%"><label class="field-label">文章配图（每行一个 URL，构建时为每篇文章随机分配一张，用作首页卡片封面和文章页头图；留空则显示羽毛笔图标 + 互动水波背景）</label><textarea data-cfg="post_bg_urls" rows="4" style="width:100%"></textarea></div>
       </div>
     </div>
 
@@ -1087,7 +1087,7 @@ def api_file():
     if tags:
         meta['tags'] = tags
     post = frontmatter.Post(content, **meta)
-    with open(fp, 'wb') as f:
+    with open(fp, 'w', encoding='utf-8') as f:
         frontmatter.dump(post, f)
 
     _broadcast_log(f"SAVE: {name}  UID={uid}")
