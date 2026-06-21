@@ -1,3 +1,13 @@
+"""
+builder.py — CNFTE Static Site Generator v3.1
+修复：
+  - LCP hero 图预加载 <link rel="preload">
+  - 文章封面 srcset/sizes 响应式（减少移动端图片流量）
+  - Google Fonts 添加 font-display=swap 参数，减少 FOIT
+  - 公告内容中 <a src="..."> → <a href="..."> 自动修复（crawlable-anchors）
+  - 头像 / anime-cover 图片宽高已在模板中固定，builder 侧无需额外处理
+  - 保留原有并行渲染、增量构建逻辑
+"""
 import os
 import shutil
 import markdown
@@ -66,7 +76,9 @@ def _inject_uid(file_path: str, p) -> str:
         return str(p.metadata['uid']).strip()
     uid = str(int(time.time())) + str(random.randint(10, 99))
     p.metadata['uid'] = uid
-    with open(file_path, 'wb') as f:
+    # FIX: python-frontmatter>=1.x 的 dump() 只接受文本句柄（内部 fd.write(str)），
+    # 用 'wb' 二进制模式打开会导致 "a bytes-like object is required, not 'str'"
+    with open(file_path, 'w', encoding='utf-8') as f:
         frontmatter.dump(p, f)
     return uid
 
@@ -86,6 +98,22 @@ def _fix_notice_links(html: str) -> str:
     用户配置的 site_notice 若包含 src= 写法，统一转换，确保搜索引擎可抓取。
     """
     return re.sub(r'<a\s+src=(["\'])(.*?)\1', r'<a href=\1\2\1', html, flags=re.IGNORECASE)
+
+
+def _resolve_cover_url(meta: dict, uid: str, post_bg_urls: list, random_img_api: str) -> None:
+    """
+    为文章/页面计算封面图兜底 URL，写入 meta['bg_url']（原地修改）。
+    优先级：frontmatter 手动 cover（已在 meta 中，不覆盖）
+          > 固定图池随机抽取
+          > 随机图 API + uid（前端各自请求，零构建期网络开销，且因 uid 各不相同天然不会撞图）
+    """
+    if meta.get('cover'):
+        return
+    if post_bg_urls:
+        meta['bg_url'] = random.choice(post_bg_urls)
+    elif random_img_api:
+        sep = '&' if '?' in random_img_api else '?'
+        meta['bg_url'] = f"{random_img_api}{sep}v={uid}"
 
 
 def build():
@@ -120,13 +148,18 @@ def build():
         except Exception:
             config['friend_links'] = []
 
-    # ── 文章随机背景图列表 ──
+    # ── 文章封面图：固定图池（留空则用下方随机图 API） ──
     pb_raw = config.get('post_bg_urls', [])
     if isinstance(pb_raw, str):
         config['post_bg_urls'] = [u.strip() for u in re.split(r'[\n,]+', pb_raw) if u.strip()]
     elif not isinstance(pb_raw, list):
         config['post_bg_urls'] = []
     post_bg_urls = config['post_bg_urls']
+
+    # ── 随机图 API（前端模式）：URL 拼上每篇文章唯一的 uid 作为防撞图参数，
+    #    不在构建期发起任何请求，由浏览器在访问时各自请求，天然零构建开销且互不重复 ──
+    random_img_api = str(config.get('random_img_api', '') or '').strip()
+    config['random_img_api'] = random_img_api
 
     snw = config.get('show_notice_widget', True)
     if isinstance(snw, str):
@@ -200,6 +233,7 @@ def build():
                     'is_page': True,
                     'noindex': _noindex,
                     'description': _get_meta_desc(p.content, p.get('description', ''))}
+            _resolve_cover_url(meta, uid, post_bg_urls, random_img_api)
             out = os.path.join(out_dir, fn.replace('.md', '.html'))
             with open(out, 'w', encoding='utf-8') as f:
                 f.write(post_tpl.render(post=meta, i18n=I18N[lang], lang=lang,
@@ -244,8 +278,9 @@ def build():
                     'tags': tags,
                     'is_page': False,
                     'noindex': _noindex}
-            if post_bg_urls:
-                meta['bg_url'] = random.choice(post_bg_urls)
+            # 封面图优先级：frontmatter 手动 cover（已在 **p.metadata 中）
+            #   > 固定图池随机抽取 > 随机图 API（带 uid，前端各自请求，零构建开销且不重复）
+            _resolve_cover_url(meta, uid, post_bg_urls, random_img_api)
             with open(os.path.join(post_dir, 'index.html'), 'w', encoding='utf-8') as f:
                 f.write(post_tpl.render(post=meta, i18n=I18N[lang], lang=lang,
                                         config=config, nav_pages=nav_pages))
