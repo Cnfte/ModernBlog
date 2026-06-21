@@ -1,3 +1,9 @@
+"""
+CNFTE GEEK_ADMIN // MOE_SYSTEM v8.0.0
+Flask WebUI Edition — 0.0.0.0:32323
+完整替换 PyQt6 GUI，功能对等：
+  内容管理 / 素材上传 / 全局配置 / 追番管理 / 友链管理 / 构建部署 / 实时日志 SSE
+"""
 import os
 import json
 import shutil
@@ -42,18 +48,23 @@ CONFIG_PATH = os.path.join(BASE_DIR, 'content', 'config.json')
 _log_queues: list[queue.Queue] = []
 _log_lock = threading.Lock()
 
+# 构建/部署互斥锁：防止重复点击或并发请求导致 git/public 目录竞态
+# （例如一次部署还在 rm -rf .git 时，另一次部署已经开始操作同一目录，
+#  会导致 git 进程因 index.lock 冲突等原因瞬间返回非零但不产生任何输出）
+_task_lock = threading.Lock()
+
 DEFAULT_CONFIG = {
-    "site_name": "YOUR SITE NAME",
-    "site_url": "https://example.com",
-    "logo_text": "LOGO TEXT",
-    "hero_title": "WELCOME BACK, GEEK!",
-    "hero_subtitle": "SUBTITLE HERO",
-    "site_keywords": "SEO KEY WORDS",
+    "site_name": "Cnfte Space",
+    "site_url": "https://cnfte.top",
+    "logo_text": "CNFTE://ROOT",
+    "hero_title": "WELCOME TO TERMINAL",
+    "hero_subtitle": "GEEK_PERSPECTIVE",
+    "site_keywords": "Cnfte, Blog, Geek",
     "site_description": "",
-    "start_date": "2026-01-01",
-    "bg_url": "BJ URL",
-    "hero_bg_url": "",
+    "start_date": "2024-01-01",
+    "bg_url": "https://cnfte.top/attachments/bj.webp",
     "post_bg_urls": "",
+    "random_img_api": "https://www.dmoe.cc/random.php",
     "og_image": "",
     "footer_custom": "DESIGNED FOR THE MOE GEEKS",
     "footer_text": "",
@@ -134,12 +145,18 @@ def _broadcast_log(msg: str):
 
 
 def _run_async(fn, *args, **kwargs):
-    """在后台线程执行，输出广播到 SSE 日志"""
+    """在后台线程执行，输出广播到 SSE 日志。
+    同一时间只允许一个构建/部署任务运行，避免 git/public 目录竞态。"""
+    if not _task_lock.acquire(blocking=False):
+        _broadcast_log("⚠️ 已有任务正在执行，请等待完成后再试")
+        return
     def _wrap():
         try:
             fn(*args, **kwargs)
         except Exception as e:
-            _broadcast_log(f"❌ 异常: {e}")
+            _broadcast_log(f"❌ 异常: {type(e).__name__}: {e}")
+        finally:
+            _task_lock.release()
     t = threading.Thread(target=_wrap, daemon=True)
     t.start()
 
@@ -151,7 +168,7 @@ _HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ModernBlogPanel Ver1.0 MOE_SYS</title>
+<title>CNFTE ADMIN // MOE_SYSTEM v8.0</title>
 <style>
 :root{
   --bg:#07070f;--panel:#0c0c18;--border:#1e1e30;--accent:#ff99cc;
@@ -300,19 +317,19 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
 
 <!-- Top Bar -->
 <div class="topbar">
-  <span class="logo">ModernBlogPanel Ver1.0</span>
-  <span style="color:var(--dim);font-size:.75rem">SYS</span>
+  <span class="logo">CNFTE://ADMIN</span>
+  <span style="color:var(--dim);font-size:.75rem">MOE_SYSTEM v8.0</span>
   <span class="clock" id="clock">--:--:--</span>
 </div>
 
 <!-- Tab Bar -->
 <div class="tabbar">
-  <div class="tab active" data-tab="content">内容</div>
-  <div class="tab" data-tab="assets">素材</div>
-  <div class="tab" data-tab="settings">配置</div>
-  <div class="tab" data-tab="anime">追番</div>
-  <div class="tab" data-tab="friends">友链</div>
-  <div class="tab" data-tab="log">日志</div>
+  <div class="tab active" data-tab="content">✍ 内容</div>
+  <div class="tab" data-tab="assets">🖼 素材</div>
+  <div class="tab" data-tab="settings">⚙ 配置</div>
+  <div class="tab" data-tab="anime">📺 追番</div>
+  <div class="tab" data-tab="friends">🔗 友链</div>
+  <div class="tab" data-tab="log">📋 日志</div>
 </div>
 
 <!-- Main Workspace -->
@@ -403,15 +420,18 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
         <div><label class="field-label">SEO 描述</label><input data-cfg="site_description"></div>
       </div>
       <div class="field-row">
-        <div><label class="field-label">背景图 URL（全站默认背景）</label><input data-cfg="bg_url"></div>
+        <div><label class="field-label">背景图 URL</label><input data-cfg="bg_url"></div>
         <div><label class="field-label">OG 封面图 URL</label><input data-cfg="og_image"></div>
       </div>
       <div class="field-row">
-        <div><label class="field-label">首页 Hero 背景图 URL（留空则使用上方默认背景）</label><input data-cfg="hero_bg_url"></div>
+        <div style="flex:1 1 100%"><label class="field-label">文章封面图池（每行一个 URL，构建时为每篇文章随机分配一张；留空则使用下方随机图 API）</label><textarea data-cfg="post_bg_urls" rows="3" style="width:100%"></textarea></div>
       </div>
       <div class="field-row">
-        <div style="flex:1 1 100%"><label class="field-label">文章配图（每行一个 URL，构建时为每篇文章随机分配一张，用作首页卡片封面和文章页头图；留空则显示羽毛笔图标 + 互动水波背景）</label><textarea data-cfg="post_bg_urls" rows="4" style="width:100%"></textarea></div>
+        <div style="flex:1 1 100%"><label class="field-label">随机图 API 地址（图池留空时生效，每篇文章会自动带上各自唯一的 uid 参数，前端各自请求，不会撞图，也不占用构建时间）</label><input data-cfg="random_img_api" placeholder="https://www.dmoe.cc/random.php"></div>
       </div>
+      <p style="font-size:.7rem;color:var(--dim);margin-top:-6px">
+        单篇文章在编辑时填写「封面 URL」可覆盖以上全局设置，优先级最高。
+      </p>
     </div>
 
     <div class="section-title">页脚内容</div>
@@ -1087,6 +1107,8 @@ def api_file():
     if tags:
         meta['tags'] = tags
     post = frontmatter.Post(content, **meta)
+    # FIX: python-frontmatter>=1.x 的 dump() 只接受文本句柄（内部 fd.write(str)），
+    # 用 'wb' 二进制模式打开会导致 "a bytes-like object is required, not 'str'"
     with open(fp, 'w', encoding='utf-8') as f:
         frontmatter.dump(post, f)
 
@@ -1240,12 +1262,27 @@ def _do_deploy():
         ['git', 'push', '-f', 'origin', 'main'],
     ]
     for cmd in cmds:
-        r = subprocess.run(cmd, cwd=pub, capture_output=True, text=True, env=env)
+        try:
+            r = subprocess.run(cmd, cwd=pub, capture_output=True, text=True, env=env, timeout=120)
+        except subprocess.TimeoutExpired:
+            _broadcast_log(f"$ {' '.join(cmd)}  [FAIL timeout]")
+            _broadcast_log("❌ 部署失败：命令执行超时（120s），请检查网络连通性")
+            return
+        except Exception as e:
+            _broadcast_log(f"$ {' '.join(cmd)}  [FAIL exception]")
+            _broadcast_log(f"❌ 部署失败：{type(e).__name__}: {e}")
+            return
         out = (r.stdout + r.stderr).strip()
         st = '[OK]' if r.returncode == 0 else f'[FAIL rc={r.returncode}]'
         _broadcast_log(f"$ {' '.join(cmd)}  {st}" + (f"\n{out}" if out else ''))
         if r.returncode != 0:
-            _broadcast_log(f"❌ 部署失败")
+            if not out:
+                _broadcast_log(
+                    "❌ 部署失败（命令无任何输出却返回失败，常见原因：与另一次构建/部署"
+                    "并发冲突导致 git 锁文件冲突，或进程被意外中断）。请稍后重试一次。"
+                )
+            else:
+                _broadcast_log("❌ 部署失败")
             return
     _broadcast_log("✅ 🚀 GitHub 推送完成")
 
