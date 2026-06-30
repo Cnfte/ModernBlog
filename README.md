@@ -603,7 +603,6 @@ Token 仅以明文形式保存在本地 `content/config.json` 中，不会包含
 ## LICENSE
 
 **本项目采用`GNU GENERAL PUBLIC LICENSE Version 3 (GPL-3.0 license)`二改请严格遵守本协议执行，未经允许禁止使用本工具盈利或商用，违者依法追究**
-**GNU 通用公共许可证 v3.0**
 
 | 权限 (Permissions)       | 限制 (Limitations)     | 条件 (Conditions)                  |
 |--------------------------|------------------------|------------------------------------|
