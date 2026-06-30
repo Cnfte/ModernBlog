@@ -1,9 +1,3 @@
-"""
-CNFTE GEEK_ADMIN // MOE_SYSTEM v8.0.0
-Flask WebUI Edition — 0.0.0.0:32323
-完整替换 PyQt6 GUI，功能对等：
-  内容管理 / 素材上传 / 全局配置 / 追番管理 / 友链管理 / 构建部署 / 实时日志 SSE
-"""
 import os
 import json
 import shutil
@@ -54,23 +48,23 @@ _log_lock = threading.Lock()
 _task_lock = threading.Lock()
 
 DEFAULT_CONFIG = {
-    "site_name": "Cnfte Space",
-    "site_url": "https://cnfte.top",
-    "logo_text": "CNFTE://ROOT",
-    "hero_title": "WELCOME TO TERMINAL",
-    "hero_subtitle": "GEEK_PERSPECTIVE",
-    "site_keywords": "Cnfte, Blog, Geek",
+    "site_name": "SITE_NAME",
+    "site_url": "https://example.com",
+    "logo_text": "LOGO_TEXT",
+    "hero_title": "WELCOME TO BACK",
+    "hero_subtitle": "HERO_SUBTITLE",
+    "site_keywords": "SEO_KEYWORDS",
     "site_description": "",
     "start_date": "2024-01-01",
-    "bg_url": "https://cnfte.top/attachments/bj.webp",
+    "bg_url": "https://example.com/example.jpg",
     "post_bg_urls": "",
     "random_img_api": "https://www.dmoe.cc/random.php",
     "og_image": "",
-    "footer_custom": "DESIGNED FOR THE MOE GEEKS",
+    "footer_custom": "FOOTER_CUSTOM",
     "footer_text": "",
     "site_notice": "",
     "show_notice_widget": False,
-    "username": "Admin",
+    "username": "USERNAME",
     "avatar_url": "",
     "bio": "Keep it simple. Keep it real.",
     "email": "",
@@ -168,7 +162,7 @@ _HTML = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CNFTE ADMIN // MOE_SYSTEM v8.0</title>
+<title>INDEX // MOE_SYSTEM v8.0</title>
 <style>
 :root{
   --bg:#07070f;--panel:#0c0c18;--border:#1e1e30;--accent:#ff99cc;
@@ -321,7 +315,7 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
 
 <!-- Top Bar -->
 <div class="topbar">
-  <span class="logo">CNFTE://ADMIN</span>
+  <span class="logo">INDEX // </span>
   <span style="color:var(--dim);font-size:.75rem">MOE_SYSTEM v8.0</span>
   <span class="clock" id="clock">--:--:--</span>
 </div>
@@ -1386,7 +1380,7 @@ def api_log_stream():
 if __name__ == '__main__':
     _init_env()
     print("=" * 55)
-    print("  CNFTE GEEK_ADMIN // MOE_SYSTEM v8.0.0")
+    print("  INDEX // MOE_SYSTEM v8.0.0")
     print("  Flask WebUI Edition")
     print(f"  访问地址: http://0.0.0.0:32323")
     print(f"  本机访问: http://127.0.0.1:32323")
