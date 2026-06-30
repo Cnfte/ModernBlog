@@ -283,11 +283,15 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
   margin-top:4px;cursor:pointer;word-break:break-all}
 
 /* ── Modal ── */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);
-  display:flex;align-items:center;justify-content:center;z-index:9000;display:none}
-.modal-overlay.open{display:flex}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;z-index:9000;
+  opacity:0;pointer-events:none;transition:opacity .35s var(--ease-out);will-change:opacity}
+.modal-overlay.open{opacity:1;pointer-events:all}
 .modal{background:var(--panel);border:1px solid var(--border);border-radius:14px;
-  padding:28px 30px;width:min(520px,92vw);max-height:90vh;overflow-y:auto}
+  padding:28px 30px;width:min(520px,92vw);max-height:90vh;overflow-y:auto;
+  transform:scale(0.85) translateY(24px);opacity:0;
+  transition:transform .45s var(--ease),opacity .35s var(--ease-out);will-change:transform,opacity}
+.modal-overlay.open .modal{transform:scale(1) translateY(0);opacity:1}
 .modal h3{color:var(--accent);margin-bottom:16px;font-size:1rem}
 .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 
@@ -629,19 +633,37 @@ function setStatus(msg, ok=true) {
 }
 
 // ─── Tab ───
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    document.querySelectorAll('.pane').forEach(p => p.style.display='none');
-    const id = 'tab-' + t.dataset.tab;
-    document.getElementById(id).style.display = (id === 'tab-content') ? 'flex' : 'block';
-    if (t.dataset.tab === 'assets') loadAssets();
-    if (t.dataset.tab === 'settings') loadSettings();
-    if (t.dataset.tab === 'anime') loadAnime();
-    if (t.dataset.tab === 'friends') loadFriends();
-    if (t.dataset.tab === 'log') startLog();
+function switchTab(tabName) {
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+  const tabEl = document.querySelector(`[data-tab="${tabName}"]`);
+  if (tabEl) tabEl.classList.add('active');
+  document.querySelectorAll('.pane').forEach(p => {
+    p.style.display = 'none';
+    p.classList.remove('pane-enter');
   });
+  const id = 'tab-' + tabName;
+  const pane = document.getElementById(id);
+  if (!pane) return;
+  pane.style.display = (id === 'tab-content') ? 'flex' : 'block';
+  // 触发弹性入场动画
+  requestAnimationFrame(() => {
+    pane.style.opacity = '0';
+    pane.style.transform = 'translateY(18px) scale(0.98)';
+    pane.style.transition = 'none';
+    requestAnimationFrame(() => {
+      pane.style.transition = 'opacity .4s var(--ease-out), transform .45s var(--ease)';
+      pane.style.opacity = '1';
+      pane.style.transform = 'translateY(0) scale(1)';
+    });
+  });
+  if (tabName === 'assets') loadAssets();
+  if (tabName === 'settings') loadSettings();
+  if (tabName === 'anime') loadAnime();
+  if (tabName === 'friends') loadFriends();
+  if (tabName === 'log') startLog();
+}
+document.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => switchTab(t.dataset.tab));
 });
 // Init
 loadFileList();
