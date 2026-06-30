@@ -1,13 +1,3 @@
-"""
-builder.py — CNFTE Static Site Generator v3.1
-修复：
-  - LCP hero 图预加载 <link rel="preload">
-  - 文章封面 srcset/sizes 响应式（减少移动端图片流量）
-  - Google Fonts 添加 font-display=swap 参数，减少 FOIT
-  - 公告内容中 <a src="..."> → <a href="..."> 自动修复（crawlable-anchors）
-  - 头像 / anime-cover 图片宽高已在模板中固定，builder 侧无需额外处理
-  - 保留原有并行渲染、增量构建逻辑
-"""
 import os
 import shutil
 import markdown
