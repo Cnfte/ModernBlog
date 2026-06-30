@@ -28,9 +28,42 @@ I18N = {
 }
 
 MD_EXTENSIONS = ['fenced_code', 'tables', 'toc', 'codehilite', 'nl2br', 'sane_lists']
+
+
+def _toc_slugify(value, separator='-'):
+    """
+    自定义 TOC 锚点生成器：
+    - 保留中文、英文、数字
+    - 把空格转为连字符
+    - 去除所有 URL/CSS 中的非法字符（: ( ) / \ . , ! ? ' " @ # $ % ^ & * + = | ~ ` < > { } [ ]）
+    - 确保不以数字或连字符开头（加 h- 前缀）
+    - 结果全小写
+    """
+    import unicodedata
+    # 规范化 Unicode
+    value = unicodedata.normalize('NFKC', str(value))
+    # 转小写
+    value = value.lower()
+    # 把空格和各种分隔符统一为连字符
+    value = re.sub(r'[\s\u3000/\\|]+', '-', value)
+    # 去除所有 CSS/URL 不合法的字符（保留中文、字母、数字、连字符、下划线）
+    value = re.sub(r'[^\w\u4e00-\u9fff\u3040-\u30ff\-]', '', value)
+    # 合并多个连字符
+    value = re.sub(r'-{2,}', '-', value)
+    # 去掉首尾连字符
+    value = value.strip('-')
+    # 不能为空
+    if not value:
+        value = 'section'
+    # 不能以数字开头（CSS selector 规则）
+    if value and value[0].isdigit():
+        value = 'h-' + value
+    return value
+
+
 MD_EXT_CONFIGS = {
     'codehilite': {'css_class': 'codehilite', 'guess_lang': False},
-    'toc': {'permalink': True}
+    'toc': {'permalink': True, 'slugify': _toc_slugify}
 }
 
 
