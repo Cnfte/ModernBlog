@@ -190,7 +190,7 @@
             position: fixed;
             inset: 0;
             z-index: -2;
-            background: url('{{ config.bg_url | default("https://cnfte.top/attachments/bj.webp") }}') center/cover no-repeat;
+            background: {% if config.bg_url %}url('{{ config.bg_url }}') center/cover no-repeat{% else %}var(--grad){% endif %};
             will-change: transform;
             transform: translateZ(0);
         }
