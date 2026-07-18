@@ -283,6 +283,16 @@ def build():
         print(f"❌ 模板加载失败: {e}")
         return
 
+    # ── 404 页面（GitHub Pages 约定：仓库根目录放一个 404.html，
+    #    访问不存在的路径时会展示它，同时仍然返回 HTTP 404 状态码）──
+    # 主题里没有 404.html 也不影响正常构建，直接跳过即可。
+    try:
+        err_tpl = env.get_template('404.html')
+        with open(os.path.join(OUTPUT_DIR, '404.html'), 'w', encoding='utf-8') as f:
+            f.write(err_tpl.render(config=config, theme_colors=theme_colors))
+    except Exception:
+        pass
+
     all_links = []
     noindex_urls = set()
 
@@ -446,20 +456,23 @@ def build():
         if domain and 'github.io' not in domain:
             with open(os.path.join(OUTPUT_DIR, 'CNAME'), 'w') as f:
                 f.write(domain)
-        _generate_seo(OUTPUT_DIR, site_url, all_links, noindex_urls)
+        _generate_seo(OUTPUT_DIR, site_url, all_links, noindex_urls, config, BASE_DIR)
 
     elapsed = time.time() - t_start
     post_count = len([l for l in all_links if 'archive' in l])
     print(f"✨ 构建完成！{post_count} 篇文章，耗时 {elapsed:.2f}s")
 
 
-def _generate_seo(out_dir: str, site_url: str, urls: list, noindex_urls: set):
+def _generate_seo(out_dir: str, site_url: str, urls: list, noindex_urls: set,
+                   config: dict, base_dir: str):
     now = datetime.datetime.now().strftime('%Y-%m-%d')
     unique = sorted(u for u in set(urls) if u not in noindex_urls)
     lines = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    full_urls = []
     for u in unique:
         loc = f"{site_url.rstrip('/')}/{u.lstrip('/')}"
+        full_urls.append(loc)
         pri = '1.0' if u in ('/', '/index.html', '/en/', '/en/index.html') else (
               '0.9' if '/archive/' in u else '0.7')
         lines.append(f'  <url><loc>{loc}</loc><lastmod>{now}</lastmod>'
@@ -477,6 +490,20 @@ def _generate_seo(out_dir: str, site_url: str, urls: list, noindex_urls: set):
     )
     with open(os.path.join(out_dir, 'robots.txt'), 'w', encoding='utf-8') as f:
         f.write(robots)
+
+    # ── IndexNow ──
+    # 1. 把密钥验证文件写进构建产物（{key}.txt），IndexNow 用它来确认站点归属；
+    # 2. 把完整 URL 列表缓存到项目根目录（不进 public/，不会被推送进部署仓库），
+    #    main.py 在推送成功后读取这份缓存去调用 IndexNow API。
+    indexnow_key = str(config.get('indexnow_key', '') or '').strip()
+    if indexnow_key and config.get('enable_indexnow', True):
+        with open(os.path.join(out_dir, f'{indexnow_key}.txt'), 'w', encoding='utf-8') as f:
+            f.write(indexnow_key)
+        try:
+            with open(os.path.join(base_dir, '.indexnow_urls.json'), 'w', encoding='utf-8') as f:
+                json.dump(full_urls, f, ensure_ascii=False)
+        except Exception:
+            pass
 
 
 if __name__ == '__main__':
