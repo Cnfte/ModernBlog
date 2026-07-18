@@ -164,7 +164,7 @@
             position: fixed;
             inset: 0;
             z-index: -2;
-            background:url('{{ config.bg_url | default("https://cnfte.top/attachments/bj.webp") }}') center/cover no-repeat;
+            background: {% if config.bg_url %}url('{{ config.bg_url }}') center/cover no-repeat{% else %}var(--grad){% endif %};
             will-change: transform;
             transform: translateZ(0);
         }
@@ -1723,8 +1723,10 @@
     <div id="hero-wrap">
         <header id="site-hero" class="hero">
             {# FIX: image-explicit-size — 为 hero-img 添加 width/height 属性防止 CLS #}
-            <img src="{{ config.bg_url | default('https://cnfte.top/attachments/bj.webp') }}" class="hero-img"
+            {% if config.bg_url %}
+            <img src="{{ config.bg_url }}" class="hero-img"
                 alt="{{ config.site_name }} 背景" width="1920" height="1080" fetchpriority="high">
+            {% endif %}
             <div class="hero-gradient" aria-hidden="true"></div>
             <div class="hero-layout">
                 <div class="hero-text">
