@@ -60,6 +60,8 @@ DEFAULT_CONFIG = {
     "hero_subtitle": "HERO_SUBTITLE",
     "site_keywords": "SEO_KEYWORDS",
     "site_description": "",
+    "enable_indexnow": True,
+    "indexnow_key": "",
     "start_date": "2024-01-01",
     "bg_url": "https://example.com/example.jpg",
     "post_bg_urls": "",
@@ -130,6 +132,17 @@ def _save_config(cfg: dict):
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
         json.dump(cfg, f, indent=4, ensure_ascii=False)
+
+
+def _ensure_indexnow_key(cfg: dict) -> str:
+    """IndexNow 密钥懒生成：首次需要用到（开始构建 / 打开设置页）时自动补一个，
+    写回 config.json，避免用户还要额外去手动生成再粘贴。"""
+    key = str(cfg.get('indexnow_key', '') or '').strip()
+    if not key:
+        key = uuid.uuid4().hex
+        cfg['indexnow_key'] = key
+        _save_config(cfg)
+    return key
 
 
 def _get_list(cfg: dict, key: str) -> list:
@@ -242,6 +255,11 @@ label.field-label{display:block;color:var(--dim);font-size:.75rem;
   margin-bottom:5px;margin-top:12px;letter-spacing:.4px}
 .field-row{display:flex;gap:10px;align-items:flex-end}
 .field-row>*{flex:1}
+.char-counter{font-size:.68rem;margin-top:4px;letter-spacing:.2px}
+.char-counter.cc-ok{color:var(--green)}
+.char-counter.cc-bad{color:var(--red)}
+.char-counter.cc-warn{color:var(--accent2)}
+.char-counter.cc-dim{color:var(--dim)}
 
 /* ── Sections ── */
 .section-title{font-size:.7rem;color:var(--accent);font-weight:bold;
@@ -378,7 +396,8 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
       <div style="display:flex;gap:10px;margin-bottom:10px">
         <div style="flex:1">
           <label class="field-label">文章标题 *</label>
-          <input id="f-title" placeholder="输入标题...">
+          <input id="f-title" placeholder="输入标题..." oninput="updateTitleCounter()">
+          <div id="cc-title" class="char-counter"></div>
         </div>
         <div style="width:160px">
           <label class="field-label">发布日期</label>
@@ -399,6 +418,12 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <input id="f-cover" placeholder="留空 / 粘贴图片URL / 从素材库选择">
         <button type="button" class="btn blue" onclick="openCoverPicker()">📁 素材库</button>
+      </div>
+      <label class="field-label">SEO 描述（留空则自动截取正文前 155 字作为摘要）</label>
+      <div style="margin-bottom:10px">
+        <textarea id="f-desc" rows="2" style="width:100%" placeholder="给这篇文章单独写一段搜索结果摘要，比自动截取更准确、更吸引点击"
+          oninput="updateDescCounter()"></textarea>
+        <div id="cc-desc" class="char-counter"></div>
       </div>
       <label class="field-label">正文 (Markdown)</label>
       <textarea id="f-body" style="height:calc(100vh - 340px);font-size:.8rem"
@@ -468,7 +493,26 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
       </div>
       <div class="field-row">
         <div><label class="field-label">SEO 关键词</label><input data-cfg="site_keywords"></div>
-        <div><label class="field-label">SEO 描述</label><input data-cfg="site_description"></div>
+        <div>
+          <label class="field-label">SEO 描述</label>
+          <input id="cfg-site-desc" data-cfg="site_description" oninput="updateCounter('cfg-site-desc','cc-site-desc',70,160,'未填写（将回退显示 SEO 关键词）')">
+          <div id="cc-site-desc" class="char-counter"></div>
+        </div>
+      </div>
+      <div class="ck-wrap">
+        <input type="checkbox" id="ck-indexnow" data-cfg-bool="enable_indexnow" checked>
+        <label for="ck-indexnow" style="color:var(--dim);font-size:.8rem">
+          推送成功后自动向 IndexNow 提交全站 URL（Bing / Yandex 等支持该协议的搜索引擎会更快抓取新内容）
+        </label>
+      </div>
+      <div class="field-row">
+        <div style="flex:1 1 100%">
+          <label class="field-label">IndexNow 密钥（自动生成，验证文件会在构建时一并写入 public/）</label>
+          <div style="display:flex;gap:8px">
+            <input id="indexnow-key" readonly style="opacity:.7">
+            <button type="button" class="btn" onclick="regenIndexNowKey()">🔄 重新生成</button>
+          </div>
+        </div>
       </div>
       <div class="field-row">
         <div><label class="field-label">背景图 URL</label><input data-cfg="bg_url"></div>
@@ -734,6 +778,7 @@ tr.selected td{background:rgba(255,153,204,.1);color:var(--accent)}
 'use strict';
 // ─── State ───
 let currentFile = null;
+let SITE_NAME = '';
 let animeList = [];
 let friendList = [];
 let selectedAnimeRow = -1;
@@ -790,6 +835,7 @@ document.querySelectorAll('.tab').forEach(t => {
 // Init
 loadFileList();
 checkSwStatus();
+fetch('/api/config').then(r => r.json()).then(c => { SITE_NAME = c.site_name || ''; updateTitleCounter(); });
 
 // ─── File List ───
 async function loadFileList() {
@@ -816,9 +862,12 @@ function clearEditor() {
   document.getElementById('f-category').value='';
   document.getElementById('f-tags').value='';
   document.getElementById('f-cover').value='';
+  document.getElementById('f-desc').value='';
   document.getElementById('f-body').value='';
   document.getElementById('content-status').textContent='';
   currentFile = null;
+  updateTitleCounter();
+  updateDescCounter();
 }
 
 async function loadFile(name) {
@@ -832,18 +881,39 @@ async function loadFile(name) {
   document.getElementById('f-category').value = d.category||'';
   document.getElementById('f-tags').value = Array.isArray(d.tags)?d.tags.join(', '):(d.tags||'');
   document.getElementById('f-cover').value = d.cover||'';
+  document.getElementById('f-desc').value = d.description||'';
   document.getElementById('f-body').value = d.content||'';
   document.getElementById('content-status').textContent = `已加载: ${name}`;
   currentFile = name;
   document.querySelectorAll('.file-item').forEach(el => {
     el.classList.toggle('active', el.querySelector('.fi-name').textContent===name);
   });
+  updateTitleCounter();
+  updateDescCounter();
 }
 
 function newFile() {
   clearEditor();
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
   document.getElementById('content-status').textContent = '新建模式';
+}
+
+// 标题（含站点名拼接后，即实际 <title> 长度）/ 描述 的实时字数提示
+function updateTitleCounter() {
+  const title = document.getElementById('f-title').value;
+  const cc = document.getElementById('cc-title');
+  if (!cc) return;
+  const full = title + (SITE_NAME ? ' - ' + SITE_NAME : '');
+  const len = full.length;
+  let cls = 'cc-ok', msg = '长度合适';
+  if (title.length === 0) { cls = 'cc-dim'; msg = '未填写'; }
+  else if (len < 20) { cls = 'cc-bad'; msg = '偏短，搜索结果标题信息量不足'; }
+  else if (len > 60) { cls = 'cc-warn'; msg = '偏长，搜索结果里可能被截断'; }
+  cc.textContent = `标题含站点名共 ${len} 字 · ${msg}`;
+  cc.className = 'char-counter ' + cls;
+}
+function updateDescCounter() {
+  updateCounter('f-desc', 'cc-desc', 70, 160, '未填写（将自动截取正文前 155 字作为摘要）');
 }
 
 async function saveFile() {
@@ -858,6 +928,7 @@ async function saveFile() {
     category: document.getElementById('f-category').value,
     cover: document.getElementById('f-cover').value,
     tags: document.getElementById('f-tags').value,
+    description: document.getElementById('f-desc').value,
     content: document.getElementById('f-body').value,
   };
   const res = await fetch('/api/file', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
@@ -1000,7 +1071,33 @@ async function loadSettings() {
   document.querySelectorAll('[data-cfg-bool]').forEach(el => {
     el.checked = !!cfg[el.dataset.cfgBool];
   });
+  document.getElementById('indexnow-key').value = cfg.indexnow_key || '(保存后自动生成)';
+  SITE_NAME = cfg.site_name || '';
+  updateCounter('cfg-site-desc', 'cc-site-desc', 70, 160, '未填写（将回退显示 SEO 关键词）');
   checkSwStatus();
+}
+
+async function regenIndexNowKey() {
+  if (!confirm('重新生成后，旧密钥的验证文件会失效，需要重新构建+推送一次才会生效，确定继续？')) return;
+  const res = await fetch('/api/indexnow/regenerate', {method:'POST'});
+  const d = await res.json();
+  if (d.ok) { document.getElementById('indexnow-key').value = d.key; setStatus('✅ IndexNow 密钥已重新生成'); }
+  else alert('生成失败');
+}
+
+// ─── SEO 字数提示（标题 / 描述）───
+// 经验区间，不是硬性规则：过短容易被搜索引擎判定为信息不足，过长在搜索结果里会被截断。
+function updateCounter(inputId, counterId, min, max, emptyMsg) {
+  const el = document.getElementById(inputId);
+  const cc = document.getElementById(counterId);
+  if (!el || !cc) return;
+  const len = el.value.length;
+  let cls = 'cc-ok', msg = '长度合适';
+  if (len === 0) { cls = 'cc-dim'; msg = emptyMsg || '未填写'; }
+  else if (len < min) { cls = 'cc-bad'; msg = `偏短，建议 ${min}-${max} 字`; }
+  else if (len > max) { cls = 'cc-warn'; msg = `偏长，搜索结果里可能被截断（建议 ≤${max} 字）`; }
+  cc.textContent = `${len} 字 · ${msg}`;
+  cc.className = 'char-counter ' + cls;
 }
 
 async function saveConfig() {
@@ -1391,7 +1488,8 @@ def api_file():
             tags = ', '.join(tags)
         return jsonify({'title': p.get('title', ''), 'date': str(p.get('date', '')),
                         'category': p.get('category', ''), 'tags': tags,
-                        'cover': p.get('cover', ''), 'content': p.content})
+                        'cover': p.get('cover', ''), 'description': p.get('description', ''),
+                        'content': p.content})
 
     if request.method == 'DELETE':
         lang = request.args.get('lang', 'zh')
@@ -1410,6 +1508,7 @@ def api_file():
     date = data.get('date', datetime.now().strftime('%Y-%m-%d'))
     category = data.get('category', '').strip()
     cover = data.get('cover', '').strip()
+    description = data.get('description', '').strip()
     tags_raw = data.get('tags', '')
     tags = [x.strip() for x in tags_raw.split(',') if x.strip()] if tags_raw else []
     content = data.get('content', '')
@@ -1430,6 +1529,8 @@ def api_file():
         meta['category'] = category
     if cover:
         meta['cover'] = cover
+    if description:
+        meta['description'] = description
     if tags:
         meta['tags'] = tags
     post = frontmatter.Post(content, **meta)
@@ -1490,14 +1591,30 @@ def api_upload():
 @app.route('/api/config', methods=['GET', 'POST'])
 def api_config():
     if request.method == 'GET':
-        return jsonify(_load_config())
+        cfg = _load_config()
+        _ensure_indexnow_key(cfg)
+        return jsonify(cfg)
     data = request.json
     cfg = _load_config()
     for k, v in data.items():
+        # indexnow_key 不接受前端写入（只读展示，重新生成走专门的接口），
+        # 避免手滑改成非法值导致密钥校验文件和实际提交的 key 对不上
+        if k == 'indexnow_key':
+            continue
         cfg[k] = v
     _save_config(cfg)
     _broadcast_log("CONFIG SAVED")
     return jsonify({'ok': True})
+
+
+@app.route('/api/indexnow/regenerate', methods=['POST'])
+def api_indexnow_regenerate():
+    cfg = _load_config()
+    key = uuid.uuid4().hex
+    cfg['indexnow_key'] = key
+    _save_config(cfg)
+    _broadcast_log(f"INDEXNOW: 密钥已重新生成")
+    return jsonify({'ok': True, 'key': key})
 
 
 @app.route('/api/sw_status')
@@ -1554,6 +1671,9 @@ def _do_build():
     if _builder_mod is None:
         _broadcast_log("❌ 找不到 builder.py")
         return
+    cfg = _load_config()
+    if cfg.get('enable_indexnow', True):
+        _ensure_indexnow_key(cfg)
     import io, contextlib
     buf = io.StringIO()
     try:
@@ -1564,6 +1684,38 @@ def _do_build():
         _broadcast_log("✅ 构建完成")
     except Exception as e:
         _broadcast_log(f"❌ 构建失败: {e}")
+
+
+def _do_indexnow_ping(cfg: dict):
+    """推送成功后，把 builder.py 在构建时缓存的完整 URL 列表批量提交给 IndexNow
+    （Bing / Yandex 等支持该协议的搜索引擎会更快去抓取），失败不影响部署本身。"""
+    key = str(cfg.get('indexnow_key', '')).strip()
+    site_url = cfg.get('site_url', '').rstrip('/')
+    cache_path = os.path.join(BASE_DIR, '.indexnow_urls.json')
+    if not key or not site_url or not os.path.exists(cache_path):
+        return
+    try:
+        with open(cache_path, 'r', encoding='utf-8') as f:
+            url_list = json.load(f)
+        if not url_list:
+            return
+        host = site_url.replace('https://', '').replace('http://', '').split('/')[0]
+        body = json.dumps({
+            'host': host,
+            'key': key,
+            'keyLocation': f"{site_url}/{key}.txt",
+            'urlList': url_list,
+        }).encode('utf-8')
+        import urllib.request
+        req = urllib.request.Request(
+            'https://api.indexnow.org/indexnow',
+            data=body, headers={'Content-Type': 'application/json; charset=utf-8'},
+            method='POST')
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            code = resp.status
+        _broadcast_log(f"📡 IndexNow 提交完成（{len(url_list)} 个 URL，HTTP {code}）")
+    except Exception as e:
+        _broadcast_log(f"⚠️ IndexNow 提交失败（不影响本次部署）: {e}")
 
 
 def _do_deploy():
@@ -1581,8 +1733,8 @@ def _do_deploy():
         shutil.rmtree(gd, onerror=lambda f, p, _: (os.chmod(p, stat.S_IWRITE), f(p)))
     env = os.environ.copy()
     env['GIT_TERMINAL_PROMPT'] = '0'
-    git_name = cfg.get('git_user_name', '').strip() or 'CNFTE Deploy'
-    git_email = cfg.get('git_user_email', '').strip() or 'deploy@cnfte.local'
+    git_name = cfg.get('git_user_name', '').strip() or 'Blog Deploy Bot'
+    git_email = cfg.get('git_user_email', '').strip() or 'deploy@localhost'
     cmds = [
         ['git', 'init'],
         ['git', 'config', 'user.name', git_name],
@@ -1617,6 +1769,9 @@ def _do_deploy():
                 _broadcast_log("❌ 部署失败")
             return
     _broadcast_log("✅ 🚀 GitHub 推送完成")
+
+    if cfg.get('enable_indexnow', True) and str(cfg.get('indexnow_key', '')).strip():
+        _do_indexnow_ping(cfg)
 
     if str(cfg.get('auto_backup_on_deploy', False)).lower() in ('true', '1'):
         if _bm is None:
