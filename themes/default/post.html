@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ post.title }} - {{ config.site_name }}</title>
+    <meta name="description" content="{{ post.description }}">
+
+    {# ── noindex ── #}
+    {% if post.noindex %}
+    <meta name="robots" content="noindex, nofollow">
+    {% else %}
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+    {% endif %}
+
+    {# ── Canonical + hreflang ── #}
+    {% if config.site_url %}
+    <link rel="canonical" href="{{ config.site_url }}{{ post.url }}">
+    {% if not post.is_page %}
+    {% if lang == 'zh' %}
+    <link rel="alternate" hreflang="zh" href="{{ config.site_url }}{{ post.url }}">
+    <link rel="alternate" hreflang="x-default" href="{{ config.site_url }}{{ post.url }}">
+    {% else %}
+    <link rel="alternate" hreflang="en" href="{{ config.site_url }}{{ post.url }}">
+    <link rel="alternate" hreflang="x-default" href="{{ config.site_url }}/archive/{{ post.uid }}/">
+    {% endif %}
+    {% endif %}
+    {% endif %}
+
+    <link rel="icon" href="/favicon.ico">
+
+    {# ── Open Graph / Twitter Card ── #}
+    <meta property="og:title" content="{{ post.title }}">
+    <meta property="og:description" content="{{ post.description }}">
+    <meta property="og:type" content="{% if post.is_page %}website{% else %}article{% endif %}">
+    {% if config.site_url %}
+    <meta property="og:url" content="{{ config.site_url }}{{ post.url }}">{% endif %}
+    {% if post.cover %}
+    <meta property="og:image" content="{{ post.cover }}">
+    {% elif config.og_image %}
+    <meta property="og:image" content="{{ config.og_image }}">{% endif %}
+    <meta property="og:site_name" content="{{ config.site_name }}">
+    {% if not post.is_page and post.date %}
+    <meta property="article:published_time" content="{{ post.date }}">
+    <meta property="article:author" content="{{ config.username }}">
+    {% for tag in post.tags %}
+    <meta property="article:tag" content="{{ tag }}">
+    {% endfor %}{% endif %}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ post.title }}">
+    <meta name="twitter:description" content="{{ post.description }}">
+    {% if post.cover %}
+    <meta name="twitter:image" content="{{ post.cover }}">
+    {% elif config.og_image %}
+    <meta name="twitter:image" content="{{ config.og_image }}">{% endif %}
+
+    {# ── JSON-LD ── #}
+    {% if config.site_url and not post.noindex %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "{% if post.is_page %}WebPage{% else %}BlogPosting{% endif %}",
+      "headline": "{{ post.title | replace('"', '\\"') }}",
+      "description": "{{ post.description | replace('"', '\\"') }}",
+      "url": "{{ config.site_url }}{{ post.url }}",
+      "inLanguage": "{% if lang == 'en' %}en{% else %}zh-CN{% endif %}",
+      {% if not post.is_page and post.date %}
+      "datePublished": "{{ post.date }}",
+      "dateModified": "{{ post.date }}",
+      "author": {
+        "@type": "Person",
+        "name": "{{ config.username }}"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "{{ config.site_name }}",
+        "url": "{{ config.site_url }}"
+      },
+      {% if post.tags %}
+      "keywords": "{{ post.tags | join(', ') }}",
+      {% endif %}
+      {% endif %}
+      "mainEntityOfPage": {
+        "@type": "WebPage",
+        "@id": "{{ config.site_url }}{{ post.url }}"
+      }
+    }
+    </script>
+    {% endif %}
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Fira+Code:wght@400;600&family=Noto+Sans+SC:wght@400;700;900&display=swap"
+        rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript>
+        <link
+            href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Fira+Code:wght@400;600&family=Noto+Sans+SC:wght@400;700;900&display=swap"
+            rel="stylesheet">
+    </noscript>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        crossorigin="anonymous" media="print" onload="this.media='all'">
+    <noscript>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+            crossorigin="anonymous">
+    </noscript>
+    <style>
+        :root {
+            --bg: #06060f;
+            --glass: rgba(255, 255, 255, 0.055);
+            --glass-md: rgba(255, 255, 255, 0.09);
+            --glass-heavy: rgba(8, 8, 18, 0.97);
+            --border: rgba(255, 255, 255, 0.10);
+            --border-accent: {{ theme_colors.border_accent }};
+            --accent: {{ theme_colors.accent }};
+            --accent2: {{ theme_colors.accent2 }};
+            --accent3: {{ theme_colors.accent3 }};
+            --grad: {{ theme_colors.grad }};
+            --shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+            --shadow-accent: 0 8px 32px rgba(255, 153, 204, 0.22);
+            --ease: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            --ease-out: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            --ease-std: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-press: cubic-bezier(0.34, 1.2, 0.64, 1);
+            --r-sm: 16px;
+            --r-md: 24px;
+            --r-lg: 32px;
+            --sidebar-w: 300px;
+        }
+
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        p,
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6,
+        span,
+        a,
+        li,
+        td,
+        th {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        ul {
+            list-style: none;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        button {
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: inherit;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', 'Inter', sans-serif;
+            color: #f0f0f8;
+            background: var(--bg);
+            line-height: 1.7;
+            overflow-x: hidden;
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bg-fixed {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background: url('{{ config.bg_url | default("https://cnfte.top/attachments/bj.webp") }}') center/cover no-repeat;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+
+        .bg-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: rgba(0, 0, 0, .48);
+            backdrop-filter: blur(8px) saturate(120%);
+            -webkit-backdrop-filter: blur(8px) saturate(120%);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .bg-overlay {
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+            }
+        }
+
+        #progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 2px;
+            width: 0%;
+            background: var(--grad);
+            z-index: 9999;
+            border-radius: 0 2px 2px 0;
+            box-shadow: 0 0 8px rgba(255, 153, 204, .6);
+        }
+
+        /* v4.2：这层不再是"糊住整个 UI 等加载"的硬阻断幕，只做一个很轻、很快的
+           软过渡提示（防止 innerHTML 替换瞬间的白屏/闪烁），真正的"翻页感"交给
+           下面 navDrop / heroReveal / cardRise / asideSlideIn 这些针对各区块的
+           入场动效来表达。 */
+        #page-transition {
+            position: fixed;
+            inset: 0;
+            z-index: 8000;
+            background: rgba(10, 8, 18, 0.1);
+            backdrop-filter: blur(0px) saturate(100%);
+            -webkit-backdrop-filter: blur(0px) saturate(100%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .16s var(--ease-out), backdrop-filter .16s var(--ease-out), -webkit-backdrop-filter .16s var(--ease-out);
+        }
+
+        #page-transition.active {
+            opacity: 1;
+            pointer-events: all;
+            backdrop-filter: blur(3px) saturate(120%);
+            -webkit-backdrop-filter: blur(3px) saturate(120%);
+        }
+
+        nav {
+            position: sticky;
+            top: 10px;
+            z-index: 1000;
+            margin: 10px auto;
+            width: calc(100% - 40px);
+            max-width: 1360px;
+            background: rgba(6, 6, 15, 0.72);
+            backdrop-filter: blur(32px) saturate(180%);
+            -webkit-backdrop-filter: blur(32px) saturate(180%);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            padding: 0 8px 0 22px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 52px;
+            box-shadow: var(--shadow);
+        }
+
+        .logo {
+            font-family: 'ZCOOL KuaiLe';
+            font-size: 1.22rem;
+            background: var(--grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            flex-shrink: 0;
+            display: inline-block;
+            transition: transform .4s var(--ease-spring), opacity .2s;
+        }
+
+        .logo:hover {
+            transform: scale(1.06) rotate(-1.5deg);
+        }
+
+        .logo:active {
+            transform: scale(.93) rotate(1deg);
+            transition: transform .18s var(--ease-press);
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .nav-links::-webkit-scrollbar {
+            display: none;
+        }
+
+        .nav-links a {
+            font-weight: 700;
+            font-size: .78rem;
+            color: rgba(255, 255, 255, .65);
+            letter-spacing: .8px;
+            padding: 6px 12px;
+            border-radius: 24px;
+            transition: background .2s, color .2s, transform .4s var(--ease-spring);
+            white-space: nowrap;
+            flex-shrink: 0;
+            display: inline-block;
+        }
+
+        .nav-links a:hover {
+            background: var(--glass-md);
+            color: #fff;
+            filter: none;
+            transform: translateY(-2px) scale(1.04);
+        }
+
+        .nav-links a:active {
+            transform: scale(.92);
+            transition: transform .15s var(--ease-press);
+        }
+
+        /* FIX: nav-lang 对比度 */
+        .nav-lang {
+            font-size: .72rem;
+            font-weight: 700;
+            color: #aaa;
+            padding: 5px 10px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            transition: border-color .2s, color .2s, transform .4s var(--ease-spring);
+            flex-shrink: 0;
+            letter-spacing: .8px;
+            display: inline-block;
+        }
+
+        .nav-lang:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            filter: none;
+            transform: scale(1.08) rotate(-2deg);
+        }
+
+        .nav-lang:active {
+            transform: scale(.9);
+            transition: transform .15s var(--ease-press);
+        }
+
+        .search-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        #search-toggle {
+            color: rgba(255, 255, 255, .55);
+            font-size: 1rem;
+            padding: 8px 10px;
+            border-radius: 50%;
+            transition: color .2s, background .2s, transform .4s var(--ease-spring);
+        }
+
+        #search-toggle:hover {
+            color: var(--accent);
+            background: var(--glass-md);
+            transform: scale(1.12) rotate(-8deg);
+        }
+
+        #search-toggle:active {
+            transform: scale(.88) rotate(4deg);
+            transition: transform .15s var(--ease-press);
+        }
+
+        #search-input {
+            width: 0;
+            opacity: 0;
+            position: absolute;
+            right: 44px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 7px 0;
+            background: rgba(6, 6, 15, .9);
+            color: #fff;
+            transition: width .35s var(--ease-out), opacity .25s, padding .25s, box-shadow .3s var(--ease-out);
+            outline: none;
+            font-size: .8rem;
+            font-family: inherit;
+        }
+
+        #search-input:focus {
+            box-shadow: 0 0 0 3px rgba(255, 153, 204, .18);
+            border-color: var(--border-accent);
+        }
+
+        .search-wrap.open #search-input {
+            width: 180px;
+            opacity: 1;
+            padding: 7px 16px;
+        }
+
+        #search-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            width: 320px;
+            background: var(--glass-heavy);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            pointer-events: none;
+            transition: max-height .3s var(--ease-out), opacity .22s;
+            box-shadow: 0 24px 56px rgba(0, 0, 0, .7);
+            z-index: 1100;
+        }
+
+        #search-dropdown.open {
+            max-height: 380px;
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .s-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 11px 18px;
+            font-size: .82rem;
+            border-bottom: 1px solid rgba(255, 255, 255, .04);
+            color: #ddd;
+            transition: background .12s, transform .35s var(--ease-spring), padding-left .35s var(--ease-spring);
+        }
+
+        .s-item::before {
+            content: '#';
+            color: var(--accent);
+            font-family: 'Fira Code';
+            font-size: .7rem;
+            flex-shrink: 0;
+        }
+
+        .s-item:hover {
+            background: rgba(255, 153, 204, .1);
+            color: var(--accent);
+            padding-left: 24px;
+        }
+
+        .s-item:active {
+            transform: scale(.97);
+            transition: transform .12s var(--ease-press);
+        }
+
+        .s-item:last-child {
+            border-bottom: none;
+        }
+
+        .s-empty,
+        .s-loading {
+            padding: 18px;
+            text-align: center;
+            color: #aaa;
+            font-size: .8rem;
+            font-family: 'Fira Code';
+        }
+
+        @keyframes cardIn {
+            0% {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* ── v4.2 动效体系：不同区块用不同的"进场方式"，而不是全部复用 cardIn ── */
+        @keyframes navDrop {
+            0% {
+                opacity: 0;
+                transform: translateY(-16px) scale(.97);
+            }
+
+            60% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        nav.cnfte-enter {
+            animation: navDrop .55s var(--ease-out) both;
+        }
+
+        @keyframes heroReveal {
+            0% {
+                opacity: 0;
+                transform: scale(1.04);
+                filter: blur(10px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+                filter: blur(0);
+            }
+        }
+
+        @keyframes cardRise {
+            0% {
+                opacity: 0;
+                transform: translateY(46px) scale(.93) rotate(-1.1deg);
+                filter: blur(4px);
+            }
+
+            55% {
+                filter: blur(0);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0) scale(1) rotate(0deg);
+            }
+        }
+
+        @keyframes asideSlideIn {
+            0% {
+                opacity: 0;
+                transform: translateX(28px) scale(.97);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+        }
+
+        @keyframes heroZoom {
+            from {
+                transform: scale(1)
+            }
+
+            to {
+                transform: scale(1.07)
+            }
+        }
+
+        .post-hero {
+            height: 44vh;
+            min-height: 320px;
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        /* FIX: image-explicit-size — post-hero-img 指定 width/height */
+        .post-hero-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(.55);
+            z-index: -1;
+            animation: heroZoom 22s ease-in-out infinite alternate;
+            will-change: transform;
+        }
+
+        /* ── 无封面兜底：扁平化图标（不用 emoji，跨平台/跨字体表现一致） ── */
+        .post-hero-img.post-cover-default {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .02));
+            color: var(--accent3, rgba(255, 255, 255, .35));
+            animation: none;
+        }
+
+        .post-hero-gradient {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            background: linear-gradient(to bottom, rgba(6, 6, 15, .08) 0%, rgba(6, 6, 15, .6) 100%);
+        }
+
+        .post-header-content {
+            position: relative;
+            z-index: 1;
+            padding: 0 40px;
+            animation: heroReveal .65s var(--ease-out) .05s both;
+            max-width: 860px;
+        }
+
+        .post-tagline {
+            color: var(--accent);
+            font-family: 'Fira Code';
+            font-size: .78rem;
+            letter-spacing: 3.5px;
+            margin-bottom: 14px;
+        }
+
+        .post-header-content h1 {
+            font-family: 'ZCOOL KuaiLe';
+            font-size: clamp(1.7rem, 5vw, 3rem);
+            color: #fff;
+            line-height: 1.2;
+            text-shadow: 0 6px 30px rgba(0, 0, 0, .75);
+        }
+
+        .layout-wrapper {
+            flex: 1;
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2.5% 60px;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) var(--sidebar-w);
+            gap: 26px;
+            align-items: start;
+        }
+
+        body[data-page="post"] .layout-wrapper {
+            margin-top: -52px;
+            position: relative;
+            z-index: 10;
+        }
+
+        body[data-page="index"] .layout-wrapper {
+            margin-top: 0;
+        }
+
+        .post-friends {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 26px;
+        }
+
+        .friend-card {
+            height: 64px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            padding: 6px;
+            overflow: hidden;
+            min-width: 0;
+            transition: transform .3s var(--ease), border-color .2s;
+        }
+
+        .friend-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--border-accent);
+        }
+
+        .friend-card img {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 2px solid var(--border-accent);
+        }
+
+        .friend-info {
+            overflow: hidden;
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .friend-info b {
+            display: block;
+            color: var(--accent);
+            font-size: .78rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .friend-info span {
+            font-size: .65rem;
+            color: rgba(255, 255, 255, .45);
+            white-space: nowrap;
+        }
+
+        main#main-content {
+            min-width: 0;
+        }
+
+        article.post-container {
+            background: var(--glass-heavy);
+            backdrop-filter: blur(40px) saturate(160%);
+            -webkit-backdrop-filter: blur(40px) saturate(160%);
+            border-radius: var(--r-lg);
+            border: 1px solid var(--border);
+            padding: 48px 44px;
+            box-shadow: var(--shadow);
+            min-width: 0;
+            animation: cardRise .65s var(--ease-out) .08s both;
+        }
+
+        .post-body {
+            font-size: 1.06rem;
+            color: #eff0f5;
+            line-height: 1.92;
+        }
+
+        .post-body h1,
+        .post-body h2 {
+            font-family: 'ZCOOL KuaiLe';
+            color: var(--accent);
+            margin: 2.2em 0 .8em;
+            font-size: 1.55rem;
+            padding-bottom: .5em;
+            border-bottom: 1px solid rgba(255, 153, 204, .15);
+        }
+
+        .post-body h3 {
+            color: var(--accent2);
+            margin: 1.6em 0 .6em;
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+
+        .post-body h4 {
+            color: rgba(255, 255, 255, .8);
+            margin: 1.2em 0 .5em;
+            font-size: 1rem;
+        }
+
+        .post-body p {
+            margin-bottom: 1.4rem;
+        }
+
+        .post-body img {
+            border-radius: var(--r-sm);
+            box-shadow: 0 10px 36px rgba(0, 0, 0, .5);
+            margin: 20px auto;
+            max-width: 100%;
+        }
+
+        .post-body a {
+            color: var(--accent);
+            border-bottom: 1px dashed rgba(255, 153, 204, .5);
+            transition: border-color .2s;
+        }
+
+        .post-body a:hover {
+            border-bottom-style: solid;
+            border-color: var(--accent);
+            filter: none;
+        }
+
+        .post-body blockquote {
+            border-left: 3px solid var(--accent);
+            margin: 22px 0;
+            padding: 14px 22px;
+            background: rgba(255, 153, 204, .05);
+            border-radius: 0 var(--r-sm) var(--r-sm) 0;
+            font-style: italic;
+            color: rgba(255, 255, 255, .7);
+        }
+
+        .post-body ul {
+            list-style: disc;
+            padding-left: 26px;
+            margin-bottom: 1.2rem;
+        }
+
+        .post-body ol {
+            list-style: decimal;
+            padding-left: 26px;
+            margin-bottom: 1.2rem;
+        }
+
+        .post-body li {
+            margin-bottom: .45rem;
+        }
+
+        .post-body table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+
+        .post-body th,
+        .post-body td {
+            border: 1px solid rgba(255, 255, 255, .08);
+            padding: 10px 18px;
+            min-width: 80px;
+        }
+
+        .post-body th {
+            background: rgba(255, 153, 204, .12);
+            color: var(--accent);
+        }
+
+        .post-body tr:nth-child(even) {
+            background: rgba(255, 255, 255, .025);
+        }
+
+        .post-body .toc {
+            background: rgba(0, 0, 0, .35);
+            border-radius: var(--r-md);
+            padding: 18px 22px;
+            margin-bottom: 32px;
+            border: 1px solid var(--border);
+        }
+
+        .post-body .toc a {
+            border-bottom: none;
+            color: rgba(255, 255, 255, .65);
+            display: block;
+            padding: 3px 0;
+        }
+
+        .post-body .toc a:hover {
+            color: var(--accent);
+        }
+
+        .post-body pre,
+        .post-body .codehilite {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            display: block;
+            background: rgba(0, 0, 0, .68);
+            padding: 22px 24px;
+            border-radius: var(--r-md);
+            border: 1px solid var(--border);
+            margin: 24px 0;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+            white-space: pre;
+        }
+
+        .post-body pre code,
+        .post-body .codehilite code {
+            white-space: pre;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+            font-family: 'Fira Code', monospace;
+            font-size: .85rem;
+            line-height: 1.7;
+            display: block;
+            background: transparent;
+            padding: 0;
+            border: none;
+            color: #e8e8f0;
+        }
+
+        .post-body code:not(pre code):not(.codehilite code) {
+            background: rgba(255, 153, 204, .13);
+            color: var(--accent);
+            padding: 2px 7px;
+            border-radius: 5px;
+            font-size: .87rem;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .btn-wrapper {
+            margin-top: 52px;
+            padding-top: 26px;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--grad);
+            color: #000;
+            padding: 13px 44px;
+            border-radius: 50px;
+            font-weight: 900;
+            font-size: .92rem;
+            box-shadow: 0 10px 28px rgba(255, 153, 204, .38);
+            transition: transform .3s var(--ease), box-shadow .3s;
+        }
+
+        .back-btn:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 16px 40px rgba(255, 153, 204, .55);
+            filter: none;
+            color: #000;
+        }
+
+        .back-btn:active {
+            transform: translateY(-1px) scale(.95);
+            transition: transform .15s var(--ease-press);
+        }
+
+        aside {
+            position: sticky;
+            top: 76px;
+            height: fit-content;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .widget {
+            background: var(--glass);
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            border: 1px solid var(--border);
+            border-radius: var(--r-lg);
+            padding: 22px;
+            overflow: hidden;
+            animation: asideSlideIn .55s var(--ease-out) both;
+        }
+
+        .widget:nth-child(1) {
+            animation-delay: .06s
+        }
+
+        .widget:nth-child(2) {
+            animation-delay: .12s
+        }
+
+        .widget:nth-child(3) {
+            animation-delay: .18s
+        }
+
+        .widget:nth-child(4) {
+            animation-delay: .24s
+        }
+
+        .widget:nth-child(n+5) {
+            animation-delay: .3s
+        }
+
+        /* FIX: heading-order — widget-title 由 h3 → h2 */
+        .widget-title {
+            font-family: 'ZCOOL KuaiLe';
+            color: var(--accent);
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .widget-title i {
+            font-size: .9rem;
+            opacity: .7;
+        }
+
+        .toc-widget {
+            font-size: .82rem;
+            max-height: 46vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 153, 204, .3) transparent;
+        }
+
+        .toc-widget::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        .toc-widget::-webkit-scrollbar-thumb {
+            background: rgba(255, 153, 204, .3);
+            border-radius: 3px;
+        }
+
+        .toc-widget a {
+            color: rgba(255, 255, 255, .6);
+            border-bottom: none;
+            display: block;
+            padding: 4px 0;
+            transition: color .15s, padding-left .35s var(--ease-spring);
+        }
+
+        .toc-widget a:hover {
+            color: var(--accent);
+            padding-left: 8px;
+            filter: none;
+        }
+
+        .toc-widget a:active {
+            padding-left: 4px;
+            transition: padding-left .12s var(--ease-press);
+        }
+
+        .anime-list {
+            display: flex;
+            flex-direction: column;
+            gap: 9px;
+        }
+
+        .anime-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 11px;
+            border-radius: var(--r-sm);
+            background: rgba(255, 255, 255, .04);
+            border: 1px solid rgba(255, 255, 255, .06);
+            transition: background .2s, border-color .2s;
+        }
+
+        .anime-item:hover {
+            background: rgba(153, 204, 255, .06);
+            border-color: rgba(153, 204, 255, .2);
+        }
+
+        .anime-cover {
+            width: 40px;
+            height: 54px;
+            border-radius: 7px;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, .1);
+        }
+
+        .anime-cover-placeholder {
+            width: 40px;
+            height: 54px;
+            border-radius: 7px;
+            flex-shrink: 0;
+            background: linear-gradient(135deg, rgba(153, 204, 255, .15), rgba(204, 153, 255, .1));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: var(--accent3, rgba(255, 255, 255, .5));
+            border: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .anime-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .anime-title {
+            font-size: .78rem;
+            font-weight: 700;
+            color: #eee;
+            margin-bottom: 3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }
+
+        .anime-ep {
+            font-family: 'Fira Code';
+            font-size: .62rem;
+            color: rgba(153, 204, 255, .7);
+        }
+
+        .anime-status {
+            font-size: .55rem;
+            font-family: 'Fira Code';
+            letter-spacing: 1px;
+            padding: 2px 6px;
+            border-radius: 6px;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .anime-status.airing {
+            background: rgba(0, 255, 128, .1);
+            color: #00ff80;
+            border: 1px solid rgba(0, 255, 128, .2);
+        }
+
+        /* FIX: anime-status.ended 对比度 */
+        .anime-status.ended {
+            background: rgba(255, 255, 255, .06);
+            color: #aaa;
+            border: 1px solid rgba(255, 255, 255, .12);
+        }
+
+        .terminal-widget {
+            background: rgba(2, 2, 8, .7);
+            border: 1px solid rgba(0, 255, 120, .15);
+            border-radius: var(--r-md);
+            padding: 16px 18px;
+            font-family: 'Fira Code';
+            font-size: .7rem;
+            line-height: 2;
+        }
+
+        .t-line {
+            color: #00ffaa;
+        }
+
+        /* FIX: t-dim 对比度提升 */
+        .t-dim {
+            color: rgba(0, 255, 170, .55);
+        }
+
+        .t-accent {
+            color: var(--accent);
+        }
+
+        .t-val {
+            color: #fff;
+        }
+
+        .profile-widget {
+            text-align: center;
+        }
+
+        .profile-avatar {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            padding: 3px;
+            border: 2.5px solid var(--accent);
+            margin: 0 auto 12px;
+            transition: transform .6s var(--ease);
+        }
+
+        .profile-avatar:hover {
+            transform: rotate(360deg) scale(1.06);
+        }
+
+        .profile-name {
+            font-family: 'ZCOOL KuaiLe';
+            color: #fff;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+
+        .profile-bio {
+            font-size: .8rem;
+            color: rgba(255, 255, 255, .5);
+            line-height: 1.55;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .social-links a {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            color: rgba(255, 255, 255, .65);
+            transition: transform .3s var(--ease), color .2s, border-color .2s;
+            flex-shrink: 0;
+        }
+
+        .social-links a:hover {
+            color: var(--accent);
+            border-color: var(--border-accent);
+            transform: translateY(-4px) scale(1.1);
+            background: rgba(255, 153, 204, .08);
+        }
+
+        /* ── 页脚毛玻璃卡片 ── */
+        footer {
+            margin: 40px auto 32px;
+            width: calc(100% - 48px);
+            max-width: 960px;
+            background: rgba(8, 8, 20, 0.55);
+            backdrop-filter: blur(24px) saturate(150%);
+            -webkit-backdrop-filter: blur(24px) saturate(150%);
+            border: 1px solid var(--border-accent, rgba(255, 153, 204, 0.15));
+            border-radius: 22px;
+            padding: 22px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, .45), 0 0 0 1px rgba(255, 255, 255, .04) inset;
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity .6s var(--ease-out), transform .65s cubic-bezier(.22, 1, .36, 1);
+        }
+
+        footer.foot-revealed {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .foot-left {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 0;
+        }
+
+        .foot-text {
+            color: rgba(255, 255, 255, .75);
+            font-size: .82rem;
+            line-height: 1.65;
+        }
+
+        .foot-text a {
+            color: var(--accent3);
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            transition: color .15s;
+        }
+
+        .foot-text a:hover {
+            color: #fff;
+        }
+
+        /* FIX: foot-copy 对比度 */
+        .foot-copy {
+            font-size: .68rem;
+            color: rgba(255, 255, 255, .35);
+            font-family: 'Fira Code';
+        }
+
+        .foot-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .foot-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border-accent, rgba(255, 255, 255, .12));
+            background: rgba(255, 255, 255, .06);
+            color: var(--accent3, rgba(255, 255, 255, .5));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .8rem;
+            transition: border-color .2s, color .2s, background .2s, transform .45s var(--ease-spring);
+        }
+
+        .foot-icon:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(255, 153, 204, .1);
+            background: color-mix(in srgb, var(--accent) 12%, transparent);
+            transform: translateY(-4px) scale(1.12) rotate(-6deg);
+        }
+
+        .foot-icon:active {
+            transform: scale(.88) rotate(4deg);
+            transition: transform .15s var(--ease-press);
+        }
+
+        @media(max-width:600px) {
+            footer {
+                padding: 18px 20px;
+                border-radius: 16px;
+                width: calc(100% - 24px);
+            }
+
+            .foot-right {
+                gap: 8px;
+            }
+
+            .foot-icon {
+                width: 30px;
+                height: 30px;
+                font-size: .75rem;
+            }
+        }
+
+        @media (max-width:1080px) {
+            :root {
+                --sidebar-w: 260px;
+            }
+        }
+
+        @media (max-width:900px) {
+            .layout-wrapper {
+                grid-template-columns: 1fr;
+                margin-top: -28px;
+            }
+
+            article.post-container {
+                padding: 28px 20px;
+                border-radius: var(--r-lg);
+            }
+
+            aside {
+                position: static;
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 12px;
+            }
+        }
+
+        @media (max-width:600px) {
+            nav {
+                padding: 0 6px 0 16px;
+                top: 6px;
+            }
+
+            .post-hero {
+                min-height: 220px;
+                height: 36vh;
+            }
+
+            .post-header-content {
+                padding: 0 18px;
+            }
+
+            .post-header-content h1 {
+                font-size: 1.5rem;
+            }
+
+            article.post-container {
+                padding: 20px 16px;
+                border-radius: var(--r-md);
+            }
+
+            .layout-wrapper {
+                padding: 0 12px 40px;
+            }
+
+            .post-body pre,
+            .post-body .codehilite {
+                padding: 14px 16px;
+                border-radius: var(--r-sm);
+            }
+
+            .post-body pre code,
+            .post-body .codehilite code {
+                font-size: .78rem;
+            }
+
+            .post-friends {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+
+            aside {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── index-only styles (SPA back-nav) ── */
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0)
+            }
+
+            50% {
+                transform: translateY(-6px)
+            }
+        }
+
+        .hero {
+            margin: 4px calc(2.5%) 24px;
+            border-radius: var(--r-lg);
+            overflow: hidden;
+            position: relative;
+            height: 44vh;
+            min-height: 360px;
+            display: flex;
+            align-items: flex-end;
+            box-shadow: var(--shadow);
+            animation: heroReveal .6s var(--ease-out) both;
+        }
+
+        .hero-img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 0;
+            filter: brightness(.7);
+            animation: heroZoom 24s ease-in-out infinite alternate;
+            will-change: transform;
+        }
+
+        .hero-gradient {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            background: linear-gradient(to top, rgba(0, 0, 0, .92) 0%, rgba(0, 0, 0, .3) 45%, transparent 75%);
+        }
+
+        .hero-layout {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            padding: 36px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 20px;
+        }
+
+        .hero-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .hero-text h1 {
+            font-family: 'ZCOOL KuaiLe';
+            font-size: clamp(1.9rem, 5.5vw, 3.6rem);
+            color: #fff;
+            line-height: 1.1;
+            margin-bottom: 8px;
+            text-shadow: 0 4px 24px rgba(0, 0, 0, .6);
+        }
+
+        .hero-text p {
+            font-size: .8rem;
+            color: rgba(255, 255, 255, .5);
+            letter-spacing: 4px;
+            font-family: 'Fira Code';
+        }
+
+        .hero-widgets {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 290px;
+            flex-shrink: 0;
+        }
+
+        .h-card {
+            background: rgba(6, 6, 15, .6);
+            backdrop-filter: blur(18px);
+            border-radius: var(--r-md);
+            padding: 14px 18px;
+            border: 1px solid rgba(255, 255, 255, .1);
+        }
+
+        .h-card-label {
+            font-size: .58rem;
+            color: var(--accent);
+            font-weight: bold;
+            letter-spacing: 2.5px;
+            margin-bottom: 8px;
+            font-family: 'Fira Code';
+        }
+
+        .hitokoto-text {
+            font-size: .82rem;
+            color: rgba(255, 255, 255, .85);
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .stat-item {
+            text-align: center;
+            font-family: 'Fira Code';
+        }
+
+        .stat-item .stat-val {
+            font-size: 1.3rem;
+            font-weight: bold;
+            background: var(--grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: block;
+        }
+
+        .stat-item .stat-lbl {
+            font-size: .58rem;
+            color: #999;
+            letter-spacing: 1.5px;
+        }
+
+        #notice-toggle {
+            display: none;
+        }
+
+        .notice-modal-wrap {
+            position: fixed;
+            inset: 0;
+            z-index: 7000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .3s var(--ease-out);
+        }
+
+        #notice-toggle:checked~.notice-modal-wrap {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .notice-backdrop {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, .7);
+            backdrop-filter: blur(6px);
+        }
+
+        .notice-backdrop-label {
+            position: absolute;
+            inset: 0;
+            cursor: pointer;
+        }
+
+        .notice-box {
+            position: relative;
+            z-index: 1;
+            background: var(--glass-heavy);
+            border: 1px solid var(--border-accent);
+            border-radius: var(--r-lg);
+            padding: 40px;
+            width: min(520px, 90vw);
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 72px rgba(0, 0, 0, .7);
+            animation: cardIn .35s var(--ease) both;
+        }
+
+        .notice-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .notice-box-title {
+            font-family: 'ZCOOL KuaiLe';
+            font-size: 1.4rem;
+            background: var(--grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .notice-close-label {
+            cursor: pointer;
+            color: rgba(255, 255, 255, .4);
+            font-size: 1.3rem;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background .2s, color .2s, border-color .2s;
+        }
+
+        .notice-close-label:hover {
+            background: rgba(255, 153, 204, .12);
+            color: var(--accent);
+            border-color: var(--border-accent);
+        }
+
+        .notice-body {
+            font-size: .9rem;
+            color: rgba(255, 255, 255, .8);
+            line-height: 1.85;
+            white-space: pre-line;
+        }
+
+        .notice-body a {
+            color: var(--accent);
+            text-decoration: underline;
+        }
+
+        .notice-open-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: .72rem;
+            font-family: 'Fira Code';
+            color: var(--accent2);
+            background: rgba(255, 204, 153, .08);
+            border: 1px solid rgba(255, 204, 153, .2);
+            border-radius: 20px;
+            padding: 5px 12px;
+            transition: background .2s, border-color .2s;
+        }
+
+        .notice-open-label:hover {
+            background: rgba(255, 204, 153, .15);
+            border-color: rgba(255, 204, 153, .4);
+        }
+
+        .post-list {
+            min-width: 0;
+        }
+
+        .post-card {
+            display: flex;
+            overflow: hidden;
+            background: var(--glass);
+            backdrop-filter: blur(20px) saturate(150%);
+            -webkit-backdrop-filter: blur(20px) saturate(150%);
+            border: 1px solid var(--border);
+            border-radius: var(--r-lg);
+            margin-bottom: 18px;
+            height: 200px;
+            transition: transform .4s var(--ease), border-color .25s, box-shadow .3s;
+            animation: cardRise .6s var(--ease-out) both;
+            content-visibility: auto;
+            contain-intrinsic-size: 0 200px;
+        }
+
+        .post-card:hover {
+            transform: translateX(8px) scale(1.005);
+            border-color: var(--border-accent);
+            box-shadow: var(--shadow-accent);
+        }
+
+        .post-cover {
+            width: 32%;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .post-cover img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform .6s var(--ease-out);
+        }
+
+        .post-card:hover .post-cover img {
+            transform: scale(1.06);
+        }
+
+        .post-cover-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to right, transparent 60%, rgba(6, 6, 15, .4));
+        }
+
+        .post-content {
+            padding: 22px 26px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            overflow: hidden;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .post-meta {
+            font-family: 'Fira Code';
+            font-size: .68rem;
+            color: var(--accent);
+            margin-bottom: 9px;
+            opacity: .75;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .post-meta .tag {
+            background: rgba(255, 153, 204, .12);
+            border: 1px solid rgba(255, 153, 204, .2);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: .6rem;
+        }
+
+        .post-title {
+            font-size: 1.35rem;
+            font-weight: 900;
+            color: #fff;
+            margin-bottom: 9px;
+            line-height: 1.28;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            transition: color .2s;
+        }
+
+        .post-card:hover .post-title {
+            color: var(--accent);
+        }
+
+        .post-summary {
+            font-size: .87rem;
+            color: rgba(255, 255, 255, .55);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: rgba(255, 255, 255, .25);
+            font-family: 'Fira Code';
+            font-size: .85rem;
+        }
+
+        @media (max-width:900px) {
+            .hero-widgets {
+                display: none !important;
+            }
+
+            .hero-layout {
+                padding: 24px;
+            }
+
+            .post-card {
+                height: auto;
+                flex-direction: column;
+            }
+
+            .post-cover {
+                width: 100%;
+                height: 180px;
+            }
+        }
+
+        @media (max-width:600px) {
+            .hero {
+                margin: 4px 12px 20px;
+                min-height: 280px;
+                height: 36vh;
+                border-radius: var(--r-md);
+            }
+
+            .hero-layout {
+                padding: 18px 20px;
+            }
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* ── 全局回弹动效的无障碍兜底：尊重「减少动态效果」系统设置 ── */
+        @media (prefers-reduced-motion: reduce) {
+
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                scroll-behavior: auto !important;
+            }
+
+            .logo:hover,
+            .logo:active,
+            .nav-links a:hover,
+            .nav-links a:active,
+            .nav-lang:hover,
+            .nav-lang:active,
+            #search-toggle:hover,
+            #search-toggle:active,
+            .s-item:hover,
+            .s-item:active,
+            .back-btn:hover,
+            .back-btn:active,
+            .toc-widget a:hover,
+            .toc-widget a:active,
+            .foot-icon:hover,
+            .foot-icon:active,
+            .cnfte-chip:hover,
+            .cnfte-chip:active,
+            .cnfte-page-btn:hover,
+            .cnfte-page-btn:active,
+            .cnfte-archive-row:hover,
+            .cnfte-archive-row:active,
+            .cs-seg button:hover,
+            .cs-seg button:active,
+            #cnfte-top-btn:hover,
+            #cnfte-top-btn:active,
+            #cnfte-settings-btn:hover,
+            #cnfte-settings-btn:active {
+                transform: none !important;
+            }
+        }
+    </style>
+    {% if config.monetag_tag_code %}
+    {{ config.monetag_tag_code | safe }}
+    {% endif %}
+</head>
+
+<body data-page="post">
+
+    <div class="bg-fixed" role="presentation"></div>
+    <div class="bg-overlay" role="presentation"></div>
+    <div id="progress-bar" role="progressbar" aria-hidden="true"></div>
+    <div id="page-transition" aria-hidden="true"></div>
+
+    <nav aria-label="主导航">
+        <a href="/" class="logo" aria-label="{{ config.site_name }} 首页">{{ config.logo_text }}</a>
+        <div class="nav-links">
+            <a href="/" data-spa>{{ i18n.home }}</a>
+            {% for np in nav_pages %}<a href="{{ np.url }}" data-spa>{{ np.title }}</a>{% endfor %}
+        </div>
+        <a href="{% if lang=='en' %}/{% else %}/en/{% endif %}" class="nav-lang"
+            aria-label="切换语言为 {{ i18n.lang_name }}">{{ i18n.lang_name }}</a>
+        <div class="search-wrap" id="search-wrap">
+            <input type="text" id="search-input" placeholder="搜索..." autocomplete="off" aria-label="搜索文章"
+                aria-controls="search-dropdown" aria-expanded="false">
+            <button id="search-toggle" aria-label="打开搜索框" aria-expanded="false">
+                <i class="fas fa-search" aria-hidden="true"></i>
+            </button>
+            {# FIX: aria-input-field-name — listbox 加 aria-label #}
+            <div id="search-dropdown" role="listbox" aria-label="搜索结果"></div>
+        </div>
+    </nav>
+
+
+    <div id="hero-wrap">
+        <div class="post-hero">
+            {# FIX: image-explicit-size — 指定 width/height 防止 CLS #}
+            {% if post.cover or post.bg_url %}
+            <img src="{{ post.cover or post.bg_url }}" class="post-hero-img" alt="{{ post.title }} 封面" width="1920"
+                height="1080" fetchpriority="high" decoding="async">
+            {% else %}
+            <div class="post-hero-img post-cover-default" style="position:absolute;inset:0;font-size:4rem"
+                aria-hidden="true"><i class="fas fa-paintbrush"></i></div>
+            {% endif %}
+            <div class="post-hero-gradient" aria-hidden="true"></div>
+            <div class="post-header-content">
+                <p class="post-tagline">{{ post.date }} // {{ post.read_time }} {{ i18n.read_unit }} // {{ post.uid }}
+                </p>
+                <h1>{{ post.title }}</h1>
+                {% if post.category or post.tags %}
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+                    {% if post.category %}
+                    <a class="cnfte-chip" data-spa
+                        href="{{ '/en/' if lang == 'en' else '/' }}?category={{ post.category | urlencode }}">
+                        <i class="fas fa-layer-group" aria-hidden="true"></i> {{ post.category }}
+                    </a>
+                    {% endif %}
+                    {% for t in post.tags %}
+                    <a class="cnfte-chip" data-spa
+                        href="{{ '/en/' if lang == 'en' else '/' }}?tag={{ t | urlencode }}">#{{ t }}</a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+
+    <div id="main-grid" class="layout-wrapper">
+        <main id="main-content">
+
+            {% if config.friend_links %}
+            <div class="post-friends">
+                {% for f in config.friend_links %}
+                {# FIX: crawlable-anchors — friend-card 必须用 href，外链加 rel=noopener #}
+                <a class="friend-card" href="{{ f.url }}" target="_blank" rel="noopener noreferrer">
+                    {% if f.avatar %}
+                    <img src="{{ f.avatar }}" alt="{{ f.name }} 头像" width="48" height="48" loading="lazy" decoding="async">
+                    {% endif %}
+                    <div class="friend-info">
+                        <b>{{ f.name }}</b>
+                        <span>{{ f.desc | default(f.url) }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <article class="post-container">
+                <div class="post-body">{{ post.content | safe }}</div>
+                <div class="btn-wrapper">
+                    <a href="/" class="back-btn" data-spa>
+                        <i class="fas fa-arrow-left" aria-hidden="true"></i> 返回首页
+                    </a>
+                </div>
+            </article>
+        </main>
+
+        <aside id="site-aside" aria-label="侧边栏">
+
+            <section class="widget profile-widget">
+                <h2 class="widget-title" style="display:none" aria-hidden="true">个人信息</h2>
+                {% if config.avatar_url %}
+                <img src="{{ config.avatar_url }}" class="profile-avatar" alt="{{ config.username }} 的头像" width="72"
+                    height="72" loading="lazy" decoding="async">
+                {% endif %}
+                <div class="profile-name">{{ config.username }}</div>
+                <p class="profile-bio">{{ config.bio }}</p>
+                <div class="social-links">
+                    {% if config.github_url %}<a href="{{ config.github_url }}" target="_blank" rel="noopener"
+                        title="GitHub"><i class="fab fa-github" aria-hidden="true"></i><span
+                            class="sr-only">GitHub</span></a>{% endif %}
+                    {% if config.telegram_url %}<a href="{{ config.telegram_url }}" target="_blank" rel="noopener"
+                        title="Telegram"><i class="fab fa-telegram" aria-hidden="true"></i><span
+                            class="sr-only">Telegram</span></a>{% endif %}
+                    {% if config.bilibili_url %}<a href="{{ config.bilibili_url }}" target="_blank" rel="noopener"
+                        title="Bilibili"><i class="fab fa-bilibili" aria-hidden="true"></i><span
+                            class="sr-only">Bilibili</span></a>{% endif %}
+                    {% if config.twitter_url %}<a href="{{ config.twitter_url }}" target="_blank" rel="noopener"
+                        title="Twitter"><i class="fab fa-twitter" aria-hidden="true"></i><span
+                            class="sr-only">Twitter</span></a>{% endif %}
+                    {% if config.rss_url %}<a href="{{ config.rss_url }}" target="_blank" rel="noopener" title="RSS"><i
+                            class="fas fa-rss" aria-hidden="true"></i><span class="sr-only">RSS</span></a>{% endif %}
+                    {% if config.email %}<a href="mailto:{{ config.email }}" title="Email"><i class="fas fa-envelope"
+                            aria-hidden="true"></i><span class="sr-only">Email</span></a>{% endif %}
+                </div>
+            </section>
+
+
+            {% if post.toc %}
+            <section class="widget">
+                <h2 class="widget-title"><i class="fas fa-list" aria-hidden="true"></i> 目录</h2>
+                <div class="toc-widget">{{ post.toc | safe }}</div>
+            </section>
+            {% endif %}
+
+
+            {% if config.anime_list %}
+            <section class="widget">
+                <h2 class="widget-title"><i class="fas fa-tv" aria-hidden="true"></i> 正在追番</h2>
+                <div class="anime-list">
+                    {% for anime in config.anime_list %}
+                    <div class="anime-item">
+                        {% if anime.cover %}
+                        <img src="{{ anime.cover }}" class="anime-cover" alt="{{ anime.title }} 封面" width="40"
+                            height="54" loading="lazy" decoding="async">
+                        {% else %}
+                        <div class="anime-cover-placeholder" aria-hidden="true"><i class="fas fa-clapperboard"></i></div>
+                        {% endif %}
+                        <div class="anime-info">
+                            <span class="anime-title">{{ anime.title }}</span>
+                            <div class="anime-ep">
+                                {% if anime.ep %}EP {{ anime.ep }}{% if anime.total %}/{{ anime.total }}{% endif %}{%
+                                endif %}
+                                {% if anime.note %} · {{ anime.note }}{% endif %}
+                            </div>
+                        </div>
+                        <span class="anime-status {{ 'airing' if anime.status == 'airing' else 'ended' }}">
+                            {{ '连载中' if anime.status == 'airing' else '完结' }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+
+
+            <section class="terminal-widget" aria-label="文章信息">
+                <div class="t-line">&gt; <span class="t-accent">UID</span>: <span class="t-val">{{ post.uid }}</span>
+                </div>
+                <div class="t-line">&gt; <span class="t-accent">TIME</span>: <span id="live-clock"
+                        class="t-val">—</span></div>
+                <div class="t-line">&gt; <span class="t-accent">READ</span>: <span class="t-val">~{{ post.read_time }}{{
+                        i18n.read_unit }}</span></div>
+                <div class="t-dim">&gt; EOF</div>
+            </section>
+        </aside>
+    </div>
+
+    <footer id="site-footer">
+        <div class="foot-left">
+            <div class="foot-text">{{ config.footer_text | default(config.footer_custom) | safe }}</div>
+            <div class="foot-copy">© {{ datetime.now().year }} {{ config.username }} // CNFTE MOE PANEL</div>
+        </div>
+        <div class="foot-right">
+            {% if config.github_url %}<a class="foot-icon" href="{{ config.github_url }}" target="_blank" rel="noopener"
+                title="GitHub"><i class="fab fa-github"></i></a>{% endif %}
+            {% if config.telegram_url %}<a class="foot-icon" href="{{ config.telegram_url }}" target="_blank"
+                rel="noopener" title="Telegram"><i class="fab fa-telegram"></i></a>{% endif %}
+            {% if config.bilibili_url %}<a class="foot-icon" href="{{ config.bilibili_url }}" target="_blank"
+                rel="noopener" title="Bilibili"><i class="fab fa-bilibili"></i></a>{% endif %}
+            {% if config.twitter_url %}<a class="foot-icon" href="{{ config.twitter_url }}" target="_blank"
+                rel="noopener" title="Twitter/X"><i class="fab fa-twitter"></i></a>{% endif %}
+            {% if config.email %}<a class="foot-icon" href="mailto:{{ config.email }}" title="Email"><i
+                    class="fas fa-envelope"></i></a>{% endif %}
+        </div>
+    </footer>
+
+    <script>
+        'use strict';
+
+        /* ─── 页脚滑入动画 ─── */
+        (function () {
+            const footer = document.getElementById('site-footer');
+            if (!footer) return;
+            const io = new IntersectionObserver(([entry]) => {
+                if (entry.isIntersecting) {
+                    footer.classList.add('foot-revealed');
+                    io.disconnect();
+                }
+            }, { threshold: 0.15 });
+            io.observe(footer);
+        })();
+
+        const bar = document.getElementById('progress-bar');
+        window._progressHandler = () => {
+            if (!bar) return;
+            const el = document.documentElement;
+            bar.style.width = Math.min((el.scrollTop || document.body.scrollTop) / (el.scrollHeight - el.clientHeight) * 100, 100) + '%';
+        };
+        window.addEventListener('scroll', window._progressHandler, { passive: true });
+
+        function initClock() {
+            const el = document.getElementById('live-clock');
+            if (el) {
+                const tick = () => el.textContent = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                tick(); clearInterval(window._liveClockTimer);
+                window._liveClockTimer = setInterval(tick, 1000);
+            }
+            const cl = document.getElementById('clock'), hc = document.getElementById('hero-clock');
+            if (cl || hc) {
+                const tick2 = () => {
+                    const t = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    if (cl) cl.textContent = t;
+                    if (hc) hc.textContent = t.slice(0, 5);
+                };
+                tick2(); clearInterval(window._clockTimer);
+                window._clockTimer = setInterval(tick2, 1000);
+            }
+        }
+        function initDays() {
+            const d1 = document.getElementById('days'), d2 = document.getElementById('sidebar-days');
+            if (!d1 && !d2) return;
+            try {
+                const s = new Date("{{ config.start_date }}");
+                if (isNaN(s)) return;
+                const n = Math.floor((Date.now() - s) / 86400000);
+                if (d1) d1.textContent = n;
+                if (d2) d2.textContent = n;
+            } catch (_) { }
+        }
+        function initHitokoto() {
+            const el = document.getElementById('hitokoto');
+            if (!el || el._loaded) return;
+            el._loaded = true;
+            (async () => {
+                try {
+                    const d = await (await fetch('https://v1.hitokoto.cn', { signal: AbortSignal.timeout(5000) })).json();
+                    el.textContent = (d.hitokoto || '— 次元语录加载失败 —');
+                } catch { el.textContent = '— 网络异常，语录休眠中 —'; }
+            })();
+        }
+        initClock();
+
+        const overlay = document.getElementById('page-transition');
+        const CACHE = window._spaCache || (window._spaCache = new Map());
+        const CACHE_MAX = 30;
+        let barTick;
+        function barStart() { if (!bar) return; bar.style.opacity = '1'; bar.style.width = '0%'; clearInterval(barTick); let p = 0; barTick = setInterval(() => { p = Math.min(p + (90 - p) * .09, 87); bar.style.width = p + '%'; }, 45); }
+        function barDone() { clearInterval(barTick); if (!bar) return; bar.style.width = '100%'; setTimeout(() => { bar.style.opacity = '0'; setTimeout(() => bar.style.width = '0%', 280); }, 180); }
+        // v4.2：短暂的软过渡veil，真正的翻页感由各区块自己的入场动画负责
+        async function fadeOut() { overlay.classList.add('active'); return new Promise(r => setTimeout(r, 120)); }
+        function fadeIn() { overlay.classList.remove('active'); }
+
+        // nav 元素本身在 SPA 换页时不会整体替换（只换 innerHTML），需要手动重放一次滑落动效
+        function replayEnter(el) {
+            if (!el) return;
+            el.classList.remove('cnfte-enter');
+            void el.offsetWidth;
+            el.classList.add('cnfte-enter');
+        }
+
+        const PREFETCHED = window._spaPrefetched || (window._spaPrefetched = new Set());
+        function prefetchUrl(url) {
+            if (!url || CACHE.has(url) || PREFETCHED.has(url)) return;
+            PREFETCHED.add(url);
+            fetch(url, { headers: { 'X-SPA': '1' } }).then(res => res.ok ? res.text() : null).then(html => {
+                if (!html) return;
+                if (CACHE.size >= CACHE_MAX) CACHE.delete(CACHE.keys().next().value);
+                CACHE.set(url, html);
+            }).catch(() => { });
+        }
+
+        function isSpaLink(href) {
+            if (!href || href.startsWith('#') || href.endsWith('.json') || href.startsWith('mailto:') || href.startsWith('tel:')) return false;
+            try { return new URL(href, location.origin).origin === location.origin; } catch { return false; }
+        }
+        async function navigate(url, push = true) {
+            if (push && url === location.href) return;
+            barStart(); await fadeOut();
+            try {
+                let html = CACHE.get(url);
+                if (!html) { const res = await fetch(url, { headers: { 'X-SPA': '1' } }); if (!res.ok) throw new Error('HTTP ' + res.status); html = await res.text(); if (CACHE.size >= CACHE_MAX) CACHE.delete(CACHE.keys().next().value); CACHE.set(url, html); }
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                document.title = doc.title;
+                document.body.dataset.page = doc.body.dataset.page || 'index';
+                const nStyle = doc.querySelector('style'), cStyle = document.querySelector('style');
+                if (nStyle && cStyle) cStyle.textContent = nStyle.textContent;
+                const nNav = doc.querySelector('nav'), cNav = document.querySelector('nav');
+                if (nNav && cNav) { cNav.className = nNav.className; cNav.innerHTML = nNav.innerHTML; }
+                const nHW = doc.getElementById('hero-wrap'), cHW = document.getElementById('hero-wrap');
+                if (nHW && cHW) cHW.outerHTML = nHW.outerHTML;
+                const nG = doc.querySelector('#main-grid,.layout-wrapper'), cG = document.querySelector('#main-grid,.layout-wrapper');
+                if (nG && cG) { cG.className = nG.className; cG.innerHTML = nG.innerHTML; }
+                const nF = doc.querySelector('footer'), cF = document.querySelector('footer');
+                if (nF && cF) cF.innerHTML = nF.innerHTML;
+                if (push) history.pushState({ url }, '', url);
+                reinitPage(); bindSpaLinks();
+                replayEnter(document.querySelector('nav'));
+                window.scrollTo({ top: 0, behavior: 'instant' });
+                barDone(); fadeIn();
+                searchReady = false; searchData = null;
+            } catch (e) { console.warn('[SPA] fallback:', e); barDone(); fadeIn(); location.href = url; }
+        }
+        function reinitPage() {
+            initClock(); initDays(); initHitokoto();
+            const si = document.getElementById('search-input');
+            if (si) si._bound = false;
+            const sb = document.getElementById('search-toggle');
+            if (sb) sb._bound = false;
+            window.removeEventListener('scroll', window._progressHandler);
+            if (document.querySelector('.post-body')) {
+                window._progressHandler = () => { if (!bar) return; const el = document.documentElement; bar.style.width = Math.min((el.scrollTop || document.body.scrollTop) / (el.scrollHeight - el.clientHeight) * 100, 100) + '%'; };
+            } else { window._progressHandler = () => { }; if (bar) bar.style.width = '0%'; }
+            window.addEventListener('scroll', window._progressHandler, { passive: true });
+            bindSearch();
+        }
+        function bindSpaLinks() {
+            document.querySelectorAll('a[data-spa],a[href]').forEach(a => {
+                if (a._spaBound) return; a._spaBound = true;
+                const href = a.getAttribute('href'); if (!isSpaLink(href)) return;
+                const full = new URL(href, location.origin).href;
+                a.addEventListener('click', e => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; e.preventDefault(); navigate(full); });
+                a.addEventListener('mouseenter', () => prefetchUrl(full), { passive: true });
+                a.addEventListener('touchstart', () => prefetchUrl(full), { passive: true });
+            });
+        }
+        window.addEventListener('popstate', e => { const target = e.state?.url || location.href; navigate(target, false); });
+        history.replaceState({ url: location.href }, '', location.href);
+        bindSpaLinks();
+        replayEnter(document.querySelector('nav'));
+
+        // ── TOC 锚点平滑跳转（修复含特殊字符的 ID，如冒号） ──
+        document.addEventListener('click', function (e) {
+            const a = e.target.closest('a[href^="#"]');
+            if (!a) return;
+            const href = a.getAttribute('href');
+            if (!href || href === '#') return;
+            // 取出纯 hash（去掉 #）
+            const rawId = decodeURIComponent(href.slice(1));
+            if (!rawId) return;
+            // 先尝试原始 getElementById（兼容干净 ID）
+            let target = document.getElementById(rawId);
+            // 若找不到，用 CSS.escape 进行 querySelector
+            if (!target) {
+                try { target = document.querySelector('#' + CSS.escape(rawId)); } catch (_) { }
+            }
+            // 若仍找不到，对 ID 做 slugify 后再试（兼容旧构建产物）
+            if (!target) {
+                const slug = rawId.toLowerCase()
+                    .replace(/[\s\u3000/\\|]+/g, '-')
+                    .replace(/[^\w\u4e00-\u9fff\u3040-\u30ff\-]/g, '')
+                    .replace(/-{2,}/g, '-').replace(/^-|-$/g, '');
+                try { target = document.getElementById(slug) || document.querySelector('#' + CSS.escape(slug)); } catch (_) { }
+            }
+            if (!target) return;
+            e.preventDefault();
+            // 计算偏移（考虑固定导航栏）
+            const navH = document.querySelector('nav')?.offsetHeight || 0;
+            const top = target.getBoundingClientRect().top + window.scrollY - navH - 16;
+            window.scrollTo({ top, behavior: 'smooth' });
+            // 更新 URL hash（不触发跳转）
+            history.pushState(null, '', href);
+        }, true);
+
+        let searchData = null, searchReady = false, searchLoading = false, dTimer;
+        function getSearchPath() { return location.pathname.startsWith('/en/') ? '/en/search.json' : '/search.json'; }
+        function getSearchEls() { return { wrap: document.getElementById('search-wrap'), input: document.getElementById('search-input'), btn: document.getElementById('search-toggle'), drop: document.getElementById('search-dropdown') }; }
+        function toggleSearch(open) {
+            const { wrap, input, drop, btn } = getSearchEls(); if (!wrap) return;
+            const o = open !== undefined ? open : !wrap.classList.contains('open');
+            wrap.classList.toggle('open', o);
+            if (btn) btn.setAttribute('aria-expanded', o ? 'true' : 'false');
+            if (input) input.setAttribute('aria-expanded', o ? 'true' : 'false');
+            if (o) { input?.focus(); if (!searchReady && !searchLoading) loadSearchData(); }
+            else if (drop) { drop.classList.remove('open'); drop.innerHTML = ''; }
+        }
+        async function loadSearchData() { searchLoading = true; try { const r = await fetch(getSearchPath(), { cache: 'no-cache' }); if (!r.ok) throw 0; searchData = await r.json(); searchReady = true; } catch (e) { console.warn('[Search]', e); } finally { searchLoading = false; } }
+        function renderResults(q) {
+            const { drop } = getSearchEls(); if (!drop) return;
+            q = q.trim().toLowerCase(); drop.innerHTML = '';
+            if (!q) { drop.classList.remove('open'); return; }
+            if (!searchReady) { drop.innerHTML = '<div class="s-loading">加载中...</div>'; drop.classList.add('open'); if (!searchLoading) loadSearchData().then(() => { const { input } = getSearchEls(); renderResults(input?.value || ''); }); return; }
+            const hits = (searchData || []).filter(i => i.title?.toLowerCase().includes(q)).slice(0, 10);
+            if (!hits.length) { drop.innerHTML = '<div class="s-empty">无匹配结果</div>'; }
+            else {
+                const frag = document.createDocumentFragment();
+                const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                hits.forEach(item => {
+                    const a = document.createElement('a'); a.className = 's-item'; a.href = item.url;
+                    a.setAttribute('role', 'option');
+                    a.innerHTML = item.title.replace(new RegExp(esc, 'gi'), m => `<mark style="background:var(--accent);color:#000;border-radius:3px;padding:0 2px">${m}</mark>`);
+                    a.addEventListener('click', () => toggleSearch(false)); frag.appendChild(a);
+                });
+                drop.appendChild(frag);
+            }
+            drop.classList.add('open');
+        }
+        function bindSearch() {
+            const { input, btn } = getSearchEls();
+            if (input && !input._bound) { input._bound = true; input.addEventListener('input', e => { clearTimeout(dTimer); dTimer = setTimeout(() => renderResults(e.target.value), 160); }); input.addEventListener('keydown', e => { if (e.key === 'Escape') toggleSearch(false); }); }
+            if (btn && !btn._bound) { btn._bound = true; btn.addEventListener('click', e => { e.stopPropagation(); toggleSearch(); }); }
+        }
+        document.addEventListener('click', e => { const { wrap } = getSearchEls(); if (wrap && !wrap.contains(e.target)) toggleSearch(false); }, { capture: true });
+        bindSearch();
+    </script>
+
+    {% include '_enhance.html' %}
+</body>
+
+</html>
