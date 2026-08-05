@@ -1,0 +1,1621 @@
+{# ═══════════════════════════════════════════════════════════════
+   _enhance.html — 共享增强片段（设置面板 / 动效 / 归档-分类-标签筛选）
+   通过 {% include '_enhance.html' %} 同时被 index.html 与 post.html 引入。
+   放在 #main-grid / nav / hero-wrap / footer 之外（作为 body 的独立同级节点），
+   这样 SPA 局部替换（navigate() 只替换 nav/hero-wrap/main-grid/footer 的内容）
+   永远不会把这里的元素冲掉；而这里的脚本用一个 MutationObserver 监听
+   document.body 的子树变化，每次 SPA 换页后自动重新应用设置 / 重新绑定筛选，
+   不需要去改动 index.html / post.html 里原有的 navigate()/reinitPage()。
+   ═══════════════════════════════════════════════════════════════ #}
+<style>
+    /* ── 侧边栏位置：左 / 右（默认）/ 不显示 ──
+       「左侧」这个选项只在双栏布局下有意义（对应 index.html/post.html 里
+       .layout-wrapper 在 >900px 时才是两栏，≤900px 会自己变成单栏堆叠）。
+       手机端不加这个媒体查询保护的话，选了「左侧」会被 #main-grid.sidebar-left
+       的 ID 选择器强行插入一条 grid-template-columns，把本该单栏的布局又拗成
+       双栏，导致内容被挤扁。这里用同一个 900px 断点把它锁在桌面/平板宽度内，
+       手机端该选项自动失效，不需要额外隐藏面板里的按钮或改 JS。 */
+    @media (min-width: 901px) {
+        #main-grid.sidebar-left {
+            grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+        }
+
+        #main-grid.sidebar-left #site-aside {
+            order: -1;
+        }
+    }
+
+    #main-grid.sidebar-none {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    #main-grid.sidebar-none #site-aside {
+        display: none !important;
+    }
+
+    {% if config.enable_icon_spin | default(true) %}
+    /* ── 通用旋转图标工具类（受后台「启用图标旋转」开关控制）── */
+    .cnfte-spin-slow {
+        display: inline-block;
+        animation: cnfteSpin 5s linear infinite;
+    }
+
+    .cnfte-spin-hover {
+        display: inline-block;
+        transition: transform .5s var(--ease-out);
+    }
+
+    *:hover>.cnfte-spin-hover {
+        transform: rotate(180deg);
+    }
+
+    @keyframes cnfteSpin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    {% endif %}
+
+    {% if config.enable_tag_bounce | default(true) %}
+    /* ── 标签 / 分类 选中弹跳动画（受后台「启用标签弹跳」开关控制）── */
+    @keyframes cnfteTagBounce {
+        0% {
+            transform: scale(1);
+        }
+
+        35% {
+            transform: scale(1.28);
+        }
+
+        60% {
+            transform: scale(.9);
+        }
+
+        80% {
+            transform: scale(1.08);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    .cnfte-chip.active {
+        animation: cnfteTagBounce .5s var(--ease-out);
+    }
+    {% endif %}
+
+    .cnfte-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 11px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--glass);
+        color: rgba(255, 255, 255, .68);
+        font-size: .72rem;
+        cursor: pointer;
+        transition: border-color .2s, color .2s, background .2s, transform .4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+        user-select: none;
+    }
+
+    .cnfte-chip:hover {
+        border-color: var(--border-accent);
+        color: var(--accent);
+        transform: translateY(-2px) scale(1.06);
+    }
+
+    .cnfte-chip:active {
+        transform: scale(.9);
+        transition: transform .15s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
+    }
+
+    .cnfte-chip.active {
+        background: var(--grad);
+        color: #1a1620;
+        border-color: transparent;
+        font-weight: 700;
+    }
+
+    .cnfte-chip .chip-count {
+        opacity: .65;
+        font-size: .66rem;
+    }
+
+    /* ── 归档 widget：年 / 月 两级 ── */
+    .cnfte-archive-level {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .cnfte-archive-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--glass);
+        cursor: pointer;
+        font-size: .78rem;
+        color: rgba(255, 255, 255, .75);
+        transition: border-color .2s, transform .4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+    }
+
+    .cnfte-archive-row:hover {
+        border-color: var(--border-accent);
+        transform: translateX(4px) scale(1.015);
+    }
+
+    .cnfte-archive-row:active {
+        transform: scale(.97);
+        transition: transform .12s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
+    }
+
+    .cnfte-archive-row.active {
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .cnfte-archive-row .arc-count {
+        font-size: .68rem;
+        opacity: .6;
+    }
+
+    .cnfte-archive-back {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: .72rem;
+        color: var(--accent);
+        cursor: pointer;
+        margin-bottom: 4px;
+        width: fit-content;
+    }
+
+    /* ── 分页 ── */
+    #cnfte-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        margin: 28px 0 8px;
+        flex-wrap: wrap;
+    }
+
+    .cnfte-page-btn {
+        min-width: 34px;
+        height: 34px;
+        padding: 0 8px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--glass);
+        color: rgba(255, 255, 255, .68);
+        font-size: .78rem;
+        cursor: pointer;
+        transition: border-color .2s, color .2s, background .2s, transform .4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+    }
+
+    .cnfte-page-btn:hover:not(:disabled) {
+        border-color: var(--border-accent);
+        color: var(--accent);
+        transform: translateY(-3px) scale(1.08);
+    }
+
+    .cnfte-page-btn:active:not(:disabled) {
+        transform: scale(.88);
+        transition: transform .15s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
+    }
+
+    .cnfte-page-btn.active {
+        background: var(--grad);
+        color: #1a1620;
+        font-weight: 700;
+        border-color: transparent;
+    }
+
+    .cnfte-page-btn:disabled {
+        opacity: .35;
+        cursor: not-allowed;
+    }
+
+    #cnfte-filter-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+    }
+
+    #cnfte-clear-filter {
+        font-size: .72rem;
+        color: var(--accent2);
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        gap: 4px;
+    }
+
+    #cnfte-clear-filter.show {
+        display: inline-flex;
+    }
+
+    /* ── Hero 副标题打字机效果：光标是紧跟在最后一个字符后面的独立 span，
+       不是贴在容器最右侧的 border（那样文字没写满一行时光标会离字很远）── */
+    .cnfte-typing-active {
+        white-space: pre-wrap;
+    }
+
+    .cnfte-cursor {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        margin-left: 2px;
+        background: var(--accent);
+        vertical-align: -0.1em;
+        animation: cnfteBlink .9s step-end infinite;
+    }
+
+    @keyframes cnfteBlink {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0;
+        }
+    }
+
+    /* ── 鼠标粒子跟随画布 ── */
+    #cnfte-particles {
+        position: fixed;
+        inset: 0;
+        z-index: 9997;
+        pointer-events: none;
+    }
+
+    /* ── 回到顶部 ── */
+    #cnfte-top-btn {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 9000;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: var(--glass-heavy);
+        border: 1px solid var(--border);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(12px) scale(.85);
+        transition: opacity .3s var(--ease-out), transform .3s var(--ease-out), visibility .3s, border-color .2s;
+        box-shadow: var(--shadow);
+    }
+
+    #cnfte-top-btn.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+    }
+
+    #cnfte-top-btn:hover {
+        transform: translateY(-4px) scale(1.05);
+        border-color: var(--accent);
+    }
+
+    #cnfte-top-btn:active {
+        transform: translateY(0) scale(.88);
+        transition: transform .15s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
+    }
+
+    /* ── 设置按钮 + 面板（左下角）── */
+    #cnfte-settings-btn {
+        position: fixed;
+        left: 20px;
+        bottom: 20px;
+        z-index: 9001;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background: var(--glass-heavy);
+        border: 1px solid var(--border);
+        color: var(--accent);
+        font-size: 1.05rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: var(--shadow);
+        transition: border-color .25s, transform .25s var(--ease-out);
+    }
+
+    #cnfte-settings-btn:hover {
+        border-color: var(--accent);
+        transform: scale(1.08) rotate(20deg);
+    }
+
+    #cnfte-settings-btn:active {
+        transform: scale(.88) rotate(-10deg);
+        transition: transform .15s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
+    }
+
+    #cnfte-settings-panel {
+        position: fixed;
+        left: 20px;
+        bottom: 78px;
+        z-index: 9001;
+        width: 272px;
+        max-height: 72vh;
+        overflow-y: auto;
+        background: var(--glass-heavy);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        padding: 18px 18px 14px;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(14px) scale(.95);
+        transform-origin: bottom left;
+        transition: opacity .25s var(--ease-out), transform .25s var(--ease-out), visibility .25s;
+    }
+
+    #cnfte-settings-panel.open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+    }
+
+    #cnfte-settings-panel h3 {
+        font-size: .82rem;
+        color: var(--accent);
+        letter-spacing: .5px;
+        margin-bottom: 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .cs-row {
+        margin-bottom: 15px;
+    }
+
+    .cs-row:last-child {
+        margin-bottom: 4px;
+    }
+
+    .cs-row>label.cs-label {
+        display: block;
+        font-size: .7rem;
+        color: rgba(255, 255, 255, .5);
+        margin-bottom: 7px;
+        letter-spacing: .3px;
+    }
+
+    .cs-seg {
+        display: flex;
+        gap: 6px;
+    }
+
+    .cs-seg button {
+        flex: 1;
+        padding: 7px 2px;
+        border-radius: 9px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, .04);
+        color: rgba(255, 255, 255, .58);
+        font-size: .68rem;
+        font-family: inherit;
+        cursor: pointer;
+        transition: border-color .2s, color .2s, background .2s, transform .35s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+    }
+
+    .cs-seg button:hover {
+        transform: translateY(-2px) scale(1.04);
+        border-color: var(--border-accent);
+    }
+
+    .cs-seg button:active {
+        transform: scale(.92);
+        transition: transform .15s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
+    }
+
+    .cs-seg button.active {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: rgba(255, 153, 204, .12);
+        font-weight: 700;
+    }
+
+    .cs-color-input {
+        width: 100%;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: transparent;
+        cursor: pointer;
+        padding: 2px;
+    }
+
+    /* ── 文章封面缺省毛笔占位（没有 cover / 图池 / 随机图 API 时的兜底）── */
+    .post-cover-default {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.4rem;
+        background: var(--grad2);
+        opacity: .85;
+    }
+
+    /* ══════════ 音乐播放器 widget ══════════ */
+    .player-widget {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .player-list-toggle {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 1px solid var(--border);
+        background: var(--glass);
+        color: var(--dim);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform .45s var(--ease-spring), color .2s, border-color .2s;
+    }
+
+    .player-list-toggle:hover {
+        color: var(--text);
+        border-color: var(--border-accent);
+    }
+
+    .player-list-toggle:active {
+        transform: scale(.88);
+    }
+
+    .player-list-toggle.open i {
+        transform: rotate(180deg);
+    }
+
+    .player-list-toggle i {
+        transition: transform .4s var(--ease-spring);
+        pointer-events: none;
+    }
+
+    .player-track-info {
+        padding-right: 30px;
+        margin-bottom: 6px;
+    }
+
+    .player-track-title {
+        font-weight: 700;
+        font-size: .92rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .player-track-artist {
+        font-size: .74rem;
+        color: var(--dim);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* 同步歌词滚动列表：整首歌词一次性渲染好、纵向排列，播放中只是让
+       .player-lyric-list 整体平滑滑动，把当前行滚到容器正中间并变色高亮，
+       上下相邻的几句始终留在视野里（提前露出下一句，不会毫无征兆地蹦出来）。 */
+    .player-lyric {
+        position: relative;
+        height: 76px;
+        overflow: hidden;
+        margin-bottom: 10px;
+        mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
+    }
+
+    .player-lyric-list {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        transition: transform .5s var(--ease-out);
+        will-change: transform;
+    }
+
+    .player-lyric-item {
+        padding: 3px 10px;
+        font-size: .7rem;
+        line-height: 1.4;
+        color: var(--dim);
+        opacity: .55;
+        text-align: center;
+        white-space: normal;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        transition: color .35s var(--ease-out), opacity .35s var(--ease-out), font-size .35s var(--ease-out), font-weight .35s var(--ease-out);
+    }
+
+    .player-lyric-item.active {
+        color: var(--accent);
+        opacity: .95;
+        font-size: .82rem;
+        font-weight: 600;
+    }
+
+    .player-progress-track {
+        position: relative;
+        height: 5px;
+        border-radius: 99px;
+        background: var(--border);
+        cursor: pointer;
+        touch-action: none;
+    }
+
+    .player-progress-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0%;
+        border-radius: 99px;
+        background: var(--grad);
+        transition: width .12s linear;
+    }
+
+    .player-progress-thumb {
+        position: absolute;
+        top: 50%;
+        left: 0%;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--text);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+        transform: translate(-50%, -50%) scale(0);
+        transition: transform .3s var(--ease-spring);
+    }
+
+    .player-progress-track:hover .player-progress-thumb,
+    .player-progress-track.dragging .player-progress-thumb {
+        transform: translate(-50%, -50%) scale(1);
+    }
+
+    .player-time-row {
+        display: flex;
+        justify-content: space-between;
+        font-size: .66rem;
+        color: var(--dim);
+        margin-top: 6px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .player-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        margin-top: 12px;
+    }
+
+    .player-btn {
+        border: none;
+        background: transparent;
+        color: var(--text);
+        font-size: .95rem;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform .4s var(--ease-spring), background .2s, color .2s;
+    }
+
+    .player-btn:hover {
+        background: var(--glass);
+    }
+
+    .player-btn:active {
+        transform: scale(.82);
+    }
+
+    .player-btn-play {
+        width: 42px;
+        height: 42px;
+        font-size: 1.05rem;
+        background: var(--grad);
+        color: #0a0a12;
+    }
+
+    .player-btn-play:hover {
+        background: var(--grad);
+        filter: brightness(1.08);
+    }
+
+    .player-btn-mode.mode-random {
+        color: var(--accent);
+    }
+
+    .player-btn-mode.mode-single {
+        color: var(--accent2);
+    }
+
+    /* 播放列表：只在播放器卡片内部展开（max-height 弹性动画），不是全局弹层 */
+    .player-playlist {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height .5s var(--ease-spring), margin-top .5s var(--ease-spring);
+        margin-top: 0;
+    }
+
+    .player-playlist.open {
+        max-height: 260px;
+        overflow-y: auto;
+        margin-top: 14px;
+    }
+
+    .player-playlist-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 8px;
+        border-radius: 8px;
+        font-size: .76rem;
+        cursor: pointer;
+        color: var(--dim);
+        transition: background .2s, color .2s, transform .3s var(--ease-out);
+    }
+
+    .player-playlist-item:hover {
+        background: var(--glass);
+        color: var(--text);
+        transform: translateX(2px);
+    }
+
+    .player-playlist-item.active {
+        color: var(--accent);
+        font-weight: 700;
+    }
+
+    .player-playlist-item .pli-artist {
+        color: var(--dim);
+        font-weight: 400;
+        flex-shrink: 0;
+    }
+
+    .player-empty-hint {
+        font-size: .72rem;
+        color: var(--dim);
+        text-align: center;
+        padding: 6px 0;
+    }
+
+    /* ══════════ 通用滚动进场动效（侧滑 / 弹出） ══════════
+       data-cnfte-reveal="left|right|pop" 标记元素，IntersectionObserver 进入视口后
+       加上 .cnfte-revealed 触发过渡；data-cnfte-reveal-repeat="1" 的元素（目前只有
+       页脚）每次离开/重新进入视口都会撤销/重放，不是只触发一次就"懒处理"掉。 */
+    [data-cnfte-reveal] {
+        opacity: 0;
+        transition: opacity .6s var(--ease-out), transform .6s var(--ease-spring), filter .5s var(--ease-out);
+        will-change: transform, opacity;
+    }
+
+    [data-cnfte-reveal="left"] {
+        transform: translateX(-64px);
+    }
+
+    [data-cnfte-reveal="right"] {
+        transform: translateX(64px);
+    }
+
+    [data-cnfte-reveal="pop"] {
+        transform: translateY(38px) scale(.86);
+        filter: blur(2px);
+    }
+
+    [data-cnfte-reveal].cnfte-revealed {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+        filter: blur(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        [data-cnfte-reveal] {
+            transition: none !important;
+            opacity: 1 !important;
+            transform: none !important;
+            filter: none !important;
+        }
+    }
+</style>
+
+
+<button id="cnfte-settings-btn" aria-label="打开显示设置" aria-expanded="false" aria-controls="cnfte-settings-panel">
+    <i class="fas fa-gear{{ ' cnfte-spin-slow' if config.enable_icon_spin | default(true) else '' }}" aria-hidden="true"></i>
+</button>
+
+<div id="cnfte-settings-panel" role="dialog" aria-label="显示设置">
+    <h3><i class="fas fa-sliders" aria-hidden="true"></i> 显示设置</h3>
+
+    <div class="cs-row">
+        <label class="cs-label">侧边栏位置</label>
+        <div class="cs-seg" data-cs-group="sidebar">
+            <button type="button" data-val="left">左侧</button>
+            <button type="button" data-val="right">右侧</button>
+            <button type="button" data-val="none">不显示</button>
+        </div>
+    </div>
+
+    <div class="cs-row">
+        <label class="cs-label">主题色</label>
+        <input type="color" id="cs-color-input" class="cs-color-input" value="{{ config.theme_color | default('#ff99cc') }}">
+    </div>
+
+    <div class="cs-row">
+        <button type="button" class="cs-seg" id="cs-reset-btn"
+            style="width:100%;padding:8px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-size:.7rem;cursor:pointer">
+            ↺ 恢复默认设置
+        </button>
+    </div>
+</div>
+
+<button id="cnfte-top-btn" aria-label="回到顶部">
+    <i class="fas fa-arrow-up" aria-hidden="true"></i>
+</button>
+
+{% if config.enable_particles | default(true) %}
+<canvas id="cnfte-particles" aria-hidden="true"></canvas>
+{% endif %}
+
+<script>
+    // 后台配置直接注入，前台 JS 只读不写——深浅色/打字效果这类「网站设计层面」的开关
+    // 交给站长在管理面板统一决定，不再放到访客可自行切换的前台设置面板里。
+    window.__cnfteConfig = {
+        heroTyping: {{ 'true' if config.enable_hero_typing | default(false) else 'false' }},
+        playerEnabled: {{ 'true' if config.enable_player | default(false) else 'false' }},
+        playerDefaultMode: {{ (config.player_default_mode | default('order')) | tojson }}
+    };
+    // 音轨 + 歌词数据在构建期就已经准备好（纯静态，不依赖任何运行时接口）
+    window.__cnftePlayerTracks = {{ (audio_tracks | default([])) | tojson }};
+</script>
+{% if config.enable_player %}
+<!-- 播放器的 <audio> 元素必须放在 SPA 局部替换范围（nav/hero-wrap/main-grid/footer）之外，
+     这样切换文章/翻页时它不会被销毁重建，播放不会被打断；侧栏里的播放器卡片只是"仪表盘"，
+     每次 SPA 换页后由下面脚本重新绑定，去读同一个 <audio> 的当前状态来刷新界面。 -->
+<audio id="cnfte-audio" preload="none"></audio>
+{% endif %}
+<script>
+    (function () {
+        'use strict';
+        const LS = {
+            sidebar: 'cnfte_sidebar', color: 'cnfte_color',
+        };
+        const DEFAULT_COLOR = document.getElementById('cs-color-input')?.value || '#ff99cc';
+        // 打字机效果逐字修改 .hero-text p 的 textContent 本身也是一次 DOM 变化，
+        // 如果不做处理会被下面的 MutationObserver 捕获，重新触发一轮初始化，
+        // 反而打断/搞乱正在进行的打字动画。这里用一个可被 initHeroTyping() 访问到
+        // 的观察者引用，在打字过程中临时 disconnect，打完再重新 observe。
+        let cnfteObserver = null;
+
+        function hexToRgb(hex) {
+            const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+            return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
+        }
+        function shiftHue(hex, deg) {
+            const rgb = hexToRgb(hex); if (!rgb) return hex;
+            let { r, g, b } = rgb; r /= 255; g /= 255; b /= 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+            if (max === min) { h = s = 0; } else {
+                const d = max - min;
+                s = l > .5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    default: h = (r - g) / d + 4;
+                }
+                h /= 6;
+            }
+            h = (h + deg / 360) % 1;
+            function hue2rgb(p, q, t) {
+                if (t < 0) t += 1; if (t > 1) t -= 1;
+                if (t < 1 / 6) return p + (q - p) * 6 * t;
+                if (t < 1 / 2) return q;
+                if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+                return p;
+            }
+            let r2, g2, b2;
+            if (s === 0) { r2 = g2 = b2 = l; } else {
+                const q = l < .5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r2 = hue2rgb(p, q, h + 1 / 3); g2 = hue2rgb(p, q, h); b2 = hue2rgb(p, q, h - 1 / 3);
+            }
+            const to255 = v => Math.round(v * 255).toString(16).padStart(2, '0');
+            return `#${to255(r2)}${to255(g2)}${to255(b2)}`;
+        }
+
+        function applyThemeColor(hex) {
+            if (!hex) return;
+            const root = document.documentElement;
+            root.style.setProperty('--accent', hex);
+            root.style.setProperty('--accent2', shiftHue(hex, 30));
+            root.style.setProperty('--accent3', shiftHue(hex, 200));
+            root.style.setProperty('--grad', `linear-gradient(135deg, ${hex} 0%, ${shiftHue(hex, 30)} 100%)`);
+            root.style.setProperty('--grad2', `linear-gradient(135deg, ${shiftHue(hex, 200)} 0%, ${shiftHue(hex, 260)} 100%)`);
+            root.style.setProperty('--border-accent', hex + '73');
+        }
+
+        function syncPanelUI() {
+            const sidebar = localStorage.getItem(LS.sidebar) || 'right';
+            const color = localStorage.getItem(LS.color) || DEFAULT_COLOR;
+
+            document.querySelectorAll('[data-cs-group="sidebar"] button').forEach(b => b.classList.toggle('active', b.dataset.val === sidebar));
+            const colorInput = document.getElementById('cs-color-input');
+            if (colorInput) colorInput.value = color;
+        }
+
+        function applyPersistedUI() {
+            const sidebar = localStorage.getItem(LS.sidebar) || 'right';
+            const grid = document.getElementById('main-grid');
+            if (grid) {
+                grid.classList.remove('sidebar-left', 'sidebar-none');
+                if (sidebar === 'left') grid.classList.add('sidebar-left');
+                if (sidebar === 'none') grid.classList.add('sidebar-none');
+            }
+
+            const color = localStorage.getItem(LS.color);
+            if (color) applyThemeColor(color);
+
+            syncPanelUI();
+        }
+
+        // ── 设置面板交互 ──
+        function bindSettingsPanel() {
+            const btn = document.getElementById('cnfte-settings-btn');
+            const panel = document.getElementById('cnfte-settings-panel');
+            if (!btn || !panel || btn._bound) return;
+            btn._bound = true;
+
+            btn.addEventListener('click', () => {
+                const open = !panel.classList.contains('open');
+                panel.classList.toggle('open', open);
+                btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+            document.addEventListener('click', e => {
+                if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                    panel.classList.remove('open');
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            });
+
+            panel.querySelectorAll('[data-cs-group="sidebar"]').forEach(group => {
+                group.querySelectorAll('button').forEach(b => {
+                    b.addEventListener('click', () => {
+                        localStorage.setItem(LS.sidebar, b.dataset.val);
+                        applyPersistedUI();
+                    });
+                });
+            });
+
+            const colorInput = document.getElementById('cs-color-input');
+            if (colorInput) {
+                colorInput.addEventListener('input', () => {
+                    localStorage.setItem(LS.color, colorInput.value);
+                    applyThemeColor(colorInput.value);
+                });
+            }
+
+            const resetBtn = document.getElementById('cs-reset-btn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    localStorage.removeItem(LS.sidebar);
+                    localStorage.removeItem(LS.color);
+                    document.documentElement.style.removeProperty('--accent');
+                    document.documentElement.style.removeProperty('--accent2');
+                    document.documentElement.style.removeProperty('--accent3');
+                    document.documentElement.style.removeProperty('--grad');
+                    document.documentElement.style.removeProperty('--grad2');
+                    document.documentElement.style.removeProperty('--border-accent');
+                    applyPersistedUI();
+                });
+            }
+        }
+
+        // ── Hero 副标题打字机效果 ──
+        // 是否启用由后台配置决定（window.__cnfteConfig.heroTyping），不再放到前台
+        // 设置面板给访客自行切换——这是站长的网站设计选择，不是访客的个人偏好。
+        //
+        // 逐字修改 textContent 本身会触发下面的 MutationObserver，如果不做隔离，
+        // 40ms 防抖之后会重新调用本函数、把刚启动没多久的计时器 clear 掉，导致打字
+        // 动画卡死在空字符串上再也恢复不了。这里的做法：真正开始逐字输出前先
+        // disconnect 观察者，全部打完/被禁用后再重新 observe。
+        //
+        // 光标不用 CSS border-right（那样只会贴在容器最右侧，文字没占满整行时
+        // 光标就会离文字很远，跟文字长度对不上），改成动态插入一个跟着文字一起走的
+        // <span> 字符，天然贴在最后一个字后面，换行时也会跟着文字走。
+        function initHeroTyping(forceRestart) {
+            const el = document.querySelector('.hero-bio');
+            if (!el) return;
+            const enabled = !!(window.__cnfteConfig && window.__cnfteConfig.heroTyping);
+
+            if (!enabled) {
+                clearTimeout(el._cnfteTypeTimer);
+                el._cnfteTypeTimer = null;
+                el.classList.remove('cnfte-typing-active');
+                if (el.dataset.cnfteFull) el.textContent = el.dataset.cnfteFull;
+                if (cnfteObserver) cnfteObserver.observe(document.body, { childList: true, subtree: true });
+                return;
+            }
+
+            const full = el.dataset.cnfteFull || el.textContent;
+            el.dataset.cnfteFull = full;
+
+            // 已经打完这段文字、且不是强制重来 → 什么都不用做，避免被反复重复触发的
+            // MutationObserver 回调打断正在进行中的动画。
+            if (!forceRestart && el._cnfteTyped === full && (el._cnfteTypeTimer || el.querySelector('.cnfte-cursor'))) return;
+
+            clearTimeout(el._cnfteTypeTimer);
+            el._cnfteTyped = full;
+            el.classList.add('cnfte-typing-active');
+            if (cnfteObserver) cnfteObserver.disconnect();
+
+            // 用「文字文本节点 + 光标 span」两个子节点搭建：光标天然贴在最后一个已
+            // 打出的字符后面（而不是贴在容器最右侧），文字换行时光标也会跟着走。
+            el.textContent = '';
+            const textNode = document.createTextNode('');
+            const cursor = document.createElement('span');
+            cursor.className = 'cnfte-cursor';
+            el.appendChild(textNode);
+            el.appendChild(cursor);
+
+            let i = 0;
+            const PUNCT_PAUSE = '，。！？,.!?、；;:…—';
+            // 用一个「预先算好每个字符要不要停顿一下」的种子数组来模拟真人打字的
+            // 断断续续感——不是每个字之间都匀速，偶尔像是想了一下才接着打。
+            const stutterAt = new Set();
+            for (let k = 2; k < full.length - 1; k++) {
+                if (Math.random() < 0.12) stutterAt.add(k);
+            }
+            function tick() {
+                i++;
+                textNode.textContent = full.slice(0, i);
+                if (i >= full.length) {
+                    // 打完最后一个字后额外顿一下，再让光标稳定下来（不是打完立刻定住）
+                    el._cnfteTypeTimer = setTimeout(() => {
+                        el._cnfteTypeTimer = null;
+                        if (cnfteObserver) cnfteObserver.observe(document.body, { childList: true, subtree: true });
+                    }, 520);
+                    return;
+                }
+                const ch = full[i - 1];
+                let delay = 95 + Math.random() * 75;
+                if (PUNCT_PAUSE.includes(ch)) delay += 300 + Math.random() * 220;
+                else if (ch === ' ') delay += 50;
+                else if (stutterAt.has(i - 1)) delay += 260 + Math.random() * 340; // 中间断续的"想了一下"
+                el._cnfteTypeTimer = setTimeout(tick, delay);
+            }
+            // 开局先停顿一下再落笔，而不是页面一出来就唰地开始打字
+            el._cnfteTypeTimer = setTimeout(tick, 650 + Math.random() * 300);
+        }
+
+        // ══════════ 通用滚动进场（侧滑 / 弹出） ══════════
+        // 每个元素只建一次 IntersectionObserver（用 dataset.revealBound 防重复绑定），
+        // SPA 换页后新出现的卡片/页脚会是全新节点，自然会被下一次调用重新选中绑定。
+        function bindScrollReveal() {
+            document.querySelectorAll('[data-cnfte-reveal]:not([data-reveal-bound])').forEach(el => {
+                el.dataset.revealBound = '1';
+                const repeat = el.dataset.cnfteRevealRepeat === '1';
+                const io = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            el.classList.add('cnfte-revealed');
+                            if (!repeat) io.unobserve(el);
+                        } else if (repeat) {
+                            el.classList.remove('cnfte-revealed');
+                        }
+                    });
+                }, { threshold: 0.15 });
+                io.observe(el);
+            });
+        }
+
+        // ── 回到顶部 ──
+        function bindBackToTop() {
+            const btn = document.getElementById('cnfte-top-btn');
+            if (!btn || btn._bound) return;
+            btn._bound = true;
+            window.addEventListener('scroll', () => {
+                btn.classList.toggle('show', (window.scrollY || document.documentElement.scrollTop) > 420);
+            }, { passive: true });
+            btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        }
+
+        // ── 鼠标粒子跟随 ──
+        function initParticles() {
+            const canvas = document.getElementById('cnfte-particles');
+            if (!canvas || canvas._inited) return;
+            canvas._inited = true;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            let w, h, particles = [];
+            const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (reduceMotion) { canvas.style.display = 'none'; return; }
+            function resize() { w = canvas.width = innerWidth; h = canvas.height = innerHeight; }
+            resize();
+            window.addEventListener('resize', resize);
+            let last = 0;
+            window.addEventListener('pointermove', e => {
+                const now = Date.now();
+                if (now - last < 16) return;
+                last = now;
+                for (let i = 0; i < 2; i++) {
+                    particles.push({
+                        x: e.clientX, y: e.clientY,
+                        vx: (Math.random() - .5) * 1.4, vy: (Math.random() - .5) * 1.4 - .2,
+                        life: 1, r: Math.random() * 2 + 1.2
+                    });
+                }
+                if (particles.length > 140) particles.splice(0, particles.length - 140);
+            }, { passive: true });
+            function tick() {
+                ctx.clearRect(0, 0, w, h);
+                const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff99cc';
+                const rgb = hexToRgb(color.length === 7 ? color : DEFAULT_COLOR) || { r: 255, g: 153, b: 204 };
+                for (const p of particles) {
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.01; p.life -= 0.022;
+                    if (p.life <= 0) continue;
+                    ctx.globalAlpha = Math.max(p.life, 0) * .8;
+                    ctx.fillStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+                }
+                ctx.globalAlpha = 1;
+                particles = particles.filter(p => p.life > 0);
+                requestAnimationFrame(tick);
+            }
+            tick();
+        }
+
+        // ── 归档 / 分类 / 标签 筛选 + 分页（仅首页存在 .post-card 时生效） ──
+        // ── 「全部标签」聚合页视图（?tags=all 时切换展示，仅首页存在 #cnfte-tags-hub 时生效）──
+        function initTagsHubView() {
+            const hub = document.getElementById('cnfte-tags-hub');
+            if (!hub) return;
+            const main = document.getElementById('main-content');
+            if (!main) return;
+            let showHub = false;
+            try { showHub = new URLSearchParams(location.search).get('tags') === 'all'; } catch (_) { }
+
+            hub.style.display = showHub ? '' : 'none';
+            main.querySelectorAll('.post-card').forEach(c => { if (showHub) c.style.display = 'none'; });
+            const filterBar = document.getElementById('cnfte-filter-bar');
+            const pagination = document.getElementById('cnfte-pagination');
+            if (filterBar) filterBar.style.display = showHub ? 'none' : '';
+            if (pagination) pagination.style.display = showHub ? 'none' : '';
+            const empty = main.querySelector('.empty-state');
+            if (empty && showHub) empty.style.display = 'none';
+        }
+
+        function initArchiveFilters() {
+            const main = document.getElementById('main-content');
+            if (!main) return;
+            const cards = Array.from(main.querySelectorAll('.post-card'));
+            if (!cards.length) return;
+            if (main._cnfteFilterBound) return;
+            main._cnfteFilterBound = true;
+
+            const perPage = parseInt(main.dataset.perPage || '9', 10) || 9;
+            const state = { category: null, tag: null, year: null, month: null, page: 1 };
+
+            // 从 URL 带入初始筛选（例如文章详情页的分类/标签徽章跳转过来）
+            try {
+                const usp = new URLSearchParams(location.search);
+                if (usp.get('category')) state.category = usp.get('category');
+                if (usp.get('tag')) state.tag = usp.get('tag');
+            } catch (_) { }
+
+            function cardMatches(card) {
+                if (state.category && card.dataset.category !== state.category) return false;
+                if (state.tag && !(card.dataset.tags || '').split('|').includes(state.tag)) return false;
+                if (state.year && card.dataset.year !== state.year) return false;
+                if (state.month && card.dataset.month !== state.month) return false;
+                return true;
+            }
+
+            function render() {
+                const visible = cards.filter(cardMatches);
+                const totalPages = Math.max(1, Math.ceil(visible.length / perPage));
+                if (state.page > totalPages) state.page = totalPages;
+                if (state.page < 1) state.page = 1;
+                const startIdx = (state.page - 1) * perPage;
+                cards.forEach(c => c.style.display = 'none');
+                visible.slice(startIdx, startIdx + perPage).forEach(c => c.style.display = '');
+
+                const empty = main.querySelector('.empty-state');
+                if (empty) empty.style.display = visible.length ? 'none' : '';
+
+                renderPagination(totalPages, visible.length);
+                syncChipStates();
+            }
+
+            function renderPagination(totalPages, totalCount) {
+                const wrap = document.getElementById('cnfte-pagination');
+                if (!wrap) return;
+                wrap.innerHTML = '';
+                if (totalCount <= perPage) return;
+                const mk = (label, page, opts = {}) => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'cnfte-page-btn';
+                    if (opts.active) b.classList.add('active');
+                    b.disabled = !!opts.disabled;
+                    b.innerHTML = label;
+                    if (!opts.disabled) b.addEventListener('click', () => { state.page = page; render(); scrollToGrid(); });
+                    return b;
+                };
+                wrap.appendChild(mk('<i class="fas fa-angle-left" aria-hidden="true"></i>', state.page - 1, { disabled: state.page <= 1 }));
+                const windowSize = 5;
+                let startP = Math.max(1, state.page - Math.floor(windowSize / 2));
+                let endP = Math.min(totalPages, startP + windowSize - 1);
+                startP = Math.max(1, endP - windowSize + 1);
+                for (let p = startP; p <= endP; p++) wrap.appendChild(mk(String(p), p, { active: p === state.page }));
+                wrap.appendChild(mk('<i class="fas fa-angle-right" aria-hidden="true"></i>', state.page + 1, { disabled: state.page >= totalPages }));
+            }
+
+            function scrollToGrid() {
+                const navH = document.querySelector('nav')?.offsetHeight || 0;
+                const top = main.getBoundingClientRect().top + window.scrollY - navH - 20;
+                window.scrollTo({ top, behavior: 'smooth' });
+            }
+
+            function syncChipStates() {
+                document.querySelectorAll('.cnfte-chip[data-cat]').forEach(el => el.classList.toggle('active', el.dataset.cat === state.category));
+                document.querySelectorAll('.cnfte-chip[data-tag]').forEach(el => el.classList.toggle('active', el.dataset.tag === state.tag));
+                document.querySelectorAll('.cnfte-archive-row[data-month]').forEach(el => el.classList.toggle('active', el.dataset.month === state.month && el.dataset.year === state.year));
+                const clearBtn = document.getElementById('cnfte-clear-filter');
+                if (clearBtn) clearBtn.classList.toggle('show', !!(state.category || state.tag || state.year));
+            }
+
+            document.querySelectorAll('.cnfte-chip[data-cat]').forEach(el => {
+                el.addEventListener('click', () => {
+                    state.category = state.category === el.dataset.cat ? null : el.dataset.cat;
+                    state.page = 1; render(); scrollToGrid();
+                });
+            });
+            document.querySelectorAll('.cnfte-chip[data-tag]').forEach(el => {
+                el.addEventListener('click', () => {
+                    state.tag = state.tag === el.dataset.tag ? null : el.dataset.tag;
+                    state.page = 1; render(); scrollToGrid();
+                });
+            });
+
+            // 归档：年 -> 月 两级钻取
+            const yearLevel = document.getElementById('cnfte-archive-years');
+            const monthLevel = document.getElementById('cnfte-archive-months');
+            const backBtn = document.getElementById('cnfte-archive-back');
+            const monthTitle = document.getElementById('cnfte-archive-month-title');
+            if (yearLevel && monthLevel) {
+                yearLevel.querySelectorAll('.cnfte-archive-row[data-year]').forEach(row => {
+                    row.addEventListener('click', () => {
+                        const y = row.dataset.year;
+                        yearLevel.style.display = 'none';
+                        monthLevel.style.display = '';
+                        monthLevel.querySelectorAll('.cnfte-archive-row').forEach(r => {
+                            r.style.display = r.dataset.year === y ? '' : 'none';
+                        });
+                        if (monthTitle) monthTitle.textContent = y + ' 年';
+                    });
+                });
+                if (backBtn) {
+                    backBtn.addEventListener('click', () => {
+                        monthLevel.style.display = 'none';
+                        yearLevel.style.display = '';
+                        state.year = null; state.month = null;
+                        state.page = 1; render();
+                    });
+                }
+                monthLevel.querySelectorAll('.cnfte-archive-row[data-month]').forEach(row => {
+                    row.addEventListener('click', () => {
+                        state.year = row.dataset.year; state.month = row.dataset.month;
+                        state.page = 1; render(); scrollToGrid();
+                    });
+                });
+            }
+
+            const clearBtn = document.getElementById('cnfte-clear-filter');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    state.category = null; state.tag = null; state.year = null; state.month = null; state.page = 1;
+                    if (yearLevel && monthLevel) { monthLevel.style.display = 'none'; yearLevel.style.display = ''; }
+                    render();
+                });
+            }
+
+            render();
+        }
+
+        // ══════════ 音乐播放器 ══════════
+        // <audio> 元素本身在 SPA 换页时不会被销毁（见上方 HTML 里的说明），
+        // 这里只对它的事件监听器做一次性绑定；侧栏里的播放器卡片 DOM 每次换页
+        // 都是全新节点，所以 renderPlayerWidget() 每次都要重新查询 + 绑定，
+        // 但会先读 audioEl 的当前状态（paused/currentTime/src）来让界面立刻同步，
+        // 不会出现"明明在放歌，卡片却显示暂停/进度归零"的错位。
+        const PLAYER_LS = { index: 'cnfte_player_idx', mode: 'cnfte_player_mode' };
+        const cnftePlayer = {
+            audioEl: null,
+            tracks: [],
+            index: -1,
+            mode: 'order',
+            lyricLines: [],
+            lyricMode: 'none',
+            lyricIdx: -1,
+            plainLines: [],
+            plainIdx: 0,
+            plainTimer: null,
+            dragging: false,
+        };
+
+        function fmtTime(sec) {
+            sec = Math.max(0, Math.floor(sec || 0));
+            const m = Math.floor(sec / 60), s = sec % 60;
+            return `${m}:${String(s).padStart(2, '0')}`;
+        }
+
+        function pickRandomIndex(exclude) {
+            if (cnftePlayer.tracks.length <= 1) return 0;
+            let n;
+            do { n = Math.floor(Math.random() * cnftePlayer.tracks.length); } while (n === exclude);
+            return n;
+        }
+
+        // 保险：万一后端漏网，前端也把行首残留的 [mm:ss.xx] 时间戳去掉，
+        // 绝不能把时间戳原样露在界面上。
+        const LYRIC_TIME_PREFIX_RE = /^\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]\s*/;
+        function cleanLyricText(text) {
+            if (!text) return '';
+            return String(text).replace(LYRIC_TIME_PREFIX_RE, '').trim();
+        }
+
+        function escapeLyricHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // 整首歌词一次性渲染成纵向列表（synced / plain 都走这一套），
+        // 后面切换当前行只需要挪动 transform + 切 class，没有逐行替换 DOM 内容
+        // 的动画，观感是"滑过去+变色"，不会有单行淡出弹入的跳动感。
+        function buildLyricList(items) {
+            const listEl = document.getElementById('player-lyric-list');
+            if (!listEl) return;
+            if (!items.length) {
+                listEl.innerHTML = '';
+                listEl.style.transform = 'translateY(0)';
+                return;
+            }
+            listEl.innerHTML = items.map((text, i) =>
+                `<div class="player-lyric-item" data-idx="${i}">${escapeLyricHtml(cleanLyricText(text)) || '&nbsp;'}</div>`
+            ).join('');
+        }
+
+        // 把第 idx 行滚到容器正中间并高亮；idx 传 -1（还没到第一句歌词的
+        // 时间点）时按第 0 行定位，让第一句提前露出来，而不是干等一片空白。
+        // 歌词允许换行，每行实际高度不固定，所以定位用实际渲染出来的
+        // offsetTop / offsetHeight 现算，而不是"固定行高 × 序号"。
+        function scrollLyricTo(idx) {
+            const listEl = document.getElementById('player-lyric-list');
+            const container = document.getElementById('player-lyric');
+            if (!listEl) return;
+            const rows = listEl.children;
+            for (let i = 0; i < rows.length; i++) rows[i].classList.toggle('active', i === idx);
+            const visualIdx = Math.max(idx, 0);
+            const containerH = container ? container.clientHeight : 76;
+            const activeRow = rows[visualIdx];
+            const rowCenter = activeRow ? (activeRow.offsetTop + activeRow.offsetHeight / 2) : 0;
+            const offset = containerH / 2 - rowCenter;
+            listEl.style.transform = `translateY(${offset}px)`;
+        }
+
+        function clearPlainLyricTimer() {
+            if (cnftePlayer.plainTimer) { clearInterval(cnftePlayer.plainTimer); cnftePlayer.plainTimer = null; }
+        }
+
+        // 无时间戳的整段歌词才会走这个轮播兜底；只在真正播放时才推进，
+        // 暂停时必须停表，不然会出现"暂停了歌词还在滚"的问题。
+        function startPlainLyricCycle() {
+            clearPlainLyricTimer();
+            if (!cnftePlayer.plainLines.length) return;
+            if (!cnftePlayer.plainIdx || cnftePlayer.plainIdx < 0) cnftePlayer.plainIdx = 0;
+            scrollLyricTo(cnftePlayer.plainIdx);
+            const audioEl = cnftePlayer.audioEl;
+            if (audioEl && audioEl.paused) return; // 暂停状态下不起定时器
+            cnftePlayer.plainTimer = setInterval(() => {
+                cnftePlayer.plainIdx = (cnftePlayer.plainIdx + 1) % cnftePlayer.plainLines.length;
+                scrollLyricTo(cnftePlayer.plainIdx);
+            }, 4200);
+        }
+
+        function loadLyricsFor(track) {
+            clearPlainLyricTimer();
+            cnftePlayer.lyricIdx = -1;
+            cnftePlayer.plainIdx = 0;
+            const ly = track && track.lyrics;
+            if (ly && ly.mode === 'synced' && ly.lines && ly.lines.length) {
+                cnftePlayer.lyricMode = 'synced';
+                cnftePlayer.lyricLines = ly.lines;
+                buildLyricList(ly.lines.map(l => l.text));
+                scrollLyricTo(-1); // 提前把第一句露出来，不高亮，等真正到时间点再变色
+            } else if (ly && ly.mode === 'plain' && ly.text) {
+                cnftePlayer.lyricMode = 'plain';
+                cnftePlayer.plainLines = ly.text.split('\n').map(s => cleanLyricText(s)).filter(Boolean);
+                if (!cnftePlayer.plainLines.length) cnftePlayer.plainLines = [cleanLyricText(ly.text)];
+                buildLyricList(cnftePlayer.plainLines);
+                startPlainLyricCycle();
+            } else {
+                cnftePlayer.lyricMode = 'none';
+                cnftePlayer.lyricLines = [];
+                buildLyricList([]);
+            }
+        }
+
+        function syncLyricToTime(t) {
+            if (cnftePlayer.lyricMode !== 'synced') return;
+            const lines = cnftePlayer.lyricLines;
+            let lo = 0, hi = lines.length - 1, ans = -1;
+            while (lo <= hi) {
+                const mid = (lo + hi) >> 1;
+                if (lines[mid].time <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+            }
+            if (ans !== cnftePlayer.lyricIdx) {
+                cnftePlayer.lyricIdx = ans;
+                scrollLyricTo(ans);
+            }
+        }
+
+        function loadTrack(i, autoplay) {
+            if (!cnftePlayer.tracks.length) return;
+            i = ((i % cnftePlayer.tracks.length) + cnftePlayer.tracks.length) % cnftePlayer.tracks.length;
+            cnftePlayer.index = i;
+            const track = cnftePlayer.tracks[i];
+            const audioEl = cnftePlayer.audioEl;
+            if (audioEl.dataset.srcId !== track.id) {
+                audioEl.src = track.url;
+                audioEl.dataset.srcId = track.id;
+            }
+            loadLyricsFor(track);
+            localStorage.setItem(PLAYER_LS.index, String(i));
+            if (autoplay) audioEl.play().catch(() => {});
+            renderPlayerWidget();
+        }
+
+        function togglePlay() {
+            const audioEl = cnftePlayer.audioEl;
+            if (!audioEl || !cnftePlayer.tracks.length) return;
+            if (!audioEl.src) { loadTrack(cnftePlayer.index >= 0 ? cnftePlayer.index : 0, true); return; }
+            if (audioEl.paused) audioEl.play().catch(() => {}); else audioEl.pause();
+        }
+
+        function playNext(manual) {
+            if (!cnftePlayer.tracks.length) return;
+            if (cnftePlayer.mode === 'single' && !manual) { loadTrack(cnftePlayer.index, true); return; }
+            const next = cnftePlayer.mode === 'random' ? pickRandomIndex(cnftePlayer.index) : cnftePlayer.index + 1;
+            loadTrack(next, true);
+        }
+
+        function playPrev() {
+            if (!cnftePlayer.tracks.length) return;
+            const prev = cnftePlayer.mode === 'random' ? pickRandomIndex(cnftePlayer.index) : cnftePlayer.index - 1;
+            loadTrack(prev, true);
+        }
+
+        function cycleMode() {
+            const order = ['order', 'random', 'single'];
+            cnftePlayer.mode = order[(order.indexOf(cnftePlayer.mode) + 1) % order.length];
+            localStorage.setItem(PLAYER_LS.mode, cnftePlayer.mode);
+            renderPlayerWidget();
+        }
+
+        function updateProgressUI() {
+            const audioEl = cnftePlayer.audioEl;
+            const fill = document.getElementById('player-progress-fill');
+            const thumb = document.getElementById('player-progress-thumb');
+            const curEl = document.getElementById('player-time-cur');
+            const durEl = document.getElementById('player-time-dur');
+            if (!audioEl || !fill) return;
+            const dur = audioEl.duration || 0;
+            const pct = dur ? (audioEl.currentTime / dur) * 100 : 0;
+            fill.style.width = pct + '%';
+            if (thumb) thumb.style.left = pct + '%';
+            if (curEl) curEl.textContent = fmtTime(audioEl.currentTime);
+            if (durEl) durEl.textContent = fmtTime(dur);
+            syncLyricToTime(audioEl.currentTime);
+        }
+
+        function bindProgressDrag() {
+            const track = document.getElementById('player-progress-track');
+            if (!track || track.dataset.bound) return;
+            track.dataset.bound = '1';
+            const audioEl = cnftePlayer.audioEl;
+            function seekFromEvent(e) {
+                const rect = track.getBoundingClientRect();
+                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                const frac = Math.min(1, Math.max(0, x / rect.width));
+                if (isFinite(audioEl.duration) && audioEl.duration > 0) {
+                    audioEl.currentTime = frac * audioEl.duration;
+                }
+                updateProgressUI();
+            }
+            track.addEventListener('pointerdown', e => {
+                if (!isFinite(audioEl.duration) || audioEl.duration <= 0) return;
+                cnftePlayer.dragging = true;
+                track.classList.add('dragging');
+                seekFromEvent(e);
+                const onMove = ev => seekFromEvent(ev);
+                const onUp = () => {
+                    cnftePlayer.dragging = false;
+                    track.classList.remove('dragging');
+                    document.removeEventListener('pointermove', onMove);
+                    document.removeEventListener('pointerup', onUp);
+                };
+                document.addEventListener('pointermove', onMove);
+                document.addEventListener('pointerup', onUp);
+            });
+        }
+
+        function renderPlayerWidget() {
+            const widget = document.getElementById('cnfte-player-widget');
+            if (!widget) return;
+            const titleEl = document.getElementById('player-track-title');
+            const artistEl = document.getElementById('player-track-artist');
+            const track = cnftePlayer.tracks[cnftePlayer.index];
+            if (titleEl) titleEl.textContent = track ? track.title : '未加载音频';
+            if (artistEl) artistEl.textContent = track ? (track.artist || '') : '';
+
+            const playIcon = document.getElementById('player-play-icon');
+            if (playIcon) {
+                const playing = cnftePlayer.audioEl && !cnftePlayer.audioEl.paused;
+                playIcon.classList.toggle('fa-play', !playing);
+                playIcon.classList.toggle('fa-pause', playing);
+            }
+
+            const modeBtn = document.getElementById('player-mode');
+            const modeIcon = document.getElementById('player-mode-icon');
+            if (modeBtn && modeIcon) {
+                modeBtn.classList.toggle('mode-random', cnftePlayer.mode === 'random');
+                modeBtn.classList.toggle('mode-single', cnftePlayer.mode === 'single');
+                modeIcon.className = cnftePlayer.mode === 'random' ? 'fas fa-shuffle'
+                    : cnftePlayer.mode === 'single' ? 'fas fa-repeat' : 'fas fa-arrow-right-arrow-left';
+                const label = cnftePlayer.mode === 'random' ? '随机播放' : cnftePlayer.mode === 'single' ? '单曲循环' : '顺序播放';
+                modeBtn.title = label;
+                modeBtn.setAttribute('aria-label', label);
+            }
+
+            const listEl = document.getElementById('player-playlist');
+            if (listEl && !listEl.dataset.rendered) {
+                listEl.dataset.rendered = '1';
+                if (!cnftePlayer.tracks.length) {
+                    listEl.innerHTML = '<div class="player-empty-hint">音频库还没有歌曲</div>';
+                } else {
+                    listEl.innerHTML = cnftePlayer.tracks.map((t, i) =>
+                        `<div class="player-playlist-item" data-idx="${i}"><span class="pli-title">${t.title}</span><span class="pli-artist">${t.artist || ''}</span></div>`
+                    ).join('');
+                    listEl.querySelectorAll('.player-playlist-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            const i = parseInt(item.dataset.idx, 10);
+                            if (i === cnftePlayer.index) togglePlay(); else loadTrack(i, true);
+                        });
+                    });
+                }
+            }
+            if (listEl) {
+                listEl.querySelectorAll('.player-playlist-item').forEach(item => {
+                    item.classList.toggle('active', parseInt(item.dataset.idx, 10) === cnftePlayer.index);
+                });
+            }
+
+            updateProgressUI();
+            bindProgressDrag();
+
+            if (!widget.dataset.bound) {
+                widget.dataset.bound = '1';
+                const toggleBtn = document.getElementById('player-list-toggle');
+                const listPanel = document.getElementById('player-playlist');
+                if (toggleBtn && listPanel) {
+                    toggleBtn.addEventListener('click', () => {
+                        const open = !listPanel.classList.contains('open');
+                        listPanel.classList.toggle('open', open);
+                        toggleBtn.classList.toggle('open', open);
+                        toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+                    });
+                }
+                document.getElementById('player-play')?.addEventListener('click', togglePlay);
+                document.getElementById('player-next')?.addEventListener('click', () => playNext(true));
+                document.getElementById('player-prev')?.addEventListener('click', playPrev);
+                document.getElementById('player-mode')?.addEventListener('click', cycleMode);
+            }
+        }
+
+        function bindMusicPlayer() {
+            if (!window.__cnfteConfig || !window.__cnfteConfig.playerEnabled) return;
+            const audioEl = document.getElementById('cnfte-audio');
+            if (!audioEl) return;
+            cnftePlayer.audioEl = audioEl;
+            if (!audioEl.dataset.bound) {
+                audioEl.dataset.bound = '1';
+                cnftePlayer.tracks = window.__cnftePlayerTracks || [];
+                cnftePlayer.mode = localStorage.getItem(PLAYER_LS.mode) || window.__cnfteConfig.playerDefaultMode || 'order';
+                const savedIdx = parseInt(localStorage.getItem(PLAYER_LS.index), 10);
+                cnftePlayer.index = (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < cnftePlayer.tracks.length) ? savedIdx : 0;
+                if (cnftePlayer.tracks[cnftePlayer.index]) {
+                    loadLyricsFor(cnftePlayer.tracks[cnftePlayer.index]);
+                }
+                audioEl.addEventListener('timeupdate', updateProgressUI);
+                audioEl.addEventListener('loadedmetadata', updateProgressUI);
+                audioEl.addEventListener('play', () => {
+                    renderPlayerWidget();
+                    if (cnftePlayer.lyricMode === 'plain') startPlainLyricCycle();
+                });
+                audioEl.addEventListener('pause', () => {
+                    renderPlayerWidget();
+                    clearPlainLyricTimer();
+                });
+                audioEl.addEventListener('ended', () => playNext(false));
+            }
+            renderPlayerWidget();
+        }
+
+        // ── 首次初始化（每个功能独立 try/catch，避免其中一个异常导致后面的
+        //    全部不执行——例如某些环境下 canvas/IntersectionObserver 不可用）──
+        function safeRun(fn) {
+            try { fn(); } catch (e) { console.warn('[cnfte-enhance]', fn.name || 'init', 'failed:', e); }
+        }
+
+        // 非首屏必需的效果（鼠标粒子跟随 / hero 打字机）延后到浏览器空闲时再启动，
+        // 不占用首次渲染的关键路径；不支持 requestIdleCallback 的环境（如 Safari）
+        // 退化为一个短 setTimeout，效果一致只是没有"真正空闲"的调度精度。
+        const cnfteIdle = window.requestIdleCallback || function (cb) { return setTimeout(cb, 120); };
+
+        safeRun(applyPersistedUI);
+        safeRun(bindSettingsPanel);
+        safeRun(bindBackToTop);
+        safeRun(initTagsHubView);
+        safeRun(initArchiveFilters);
+        safeRun(bindMusicPlayer);
+        safeRun(bindScrollReveal);
+        cnfteIdle(() => { safeRun(initParticles); safeRun(initHeroTyping); }, { timeout: 800 });
+
+        // ── SPA 换页后重新应用（不需要改动原有 navigate()/reinitPage()）──
+        let debounceTimer;
+        cnfteObserver = new MutationObserver(() => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                safeRun(applyPersistedUI);
+                safeRun(bindSettingsPanel);
+                safeRun(bindBackToTop);
+                safeRun(initTagsHubView);
+                safeRun(initArchiveFilters);
+                safeRun(bindMusicPlayer);
+                safeRun(bindScrollReveal);
+                cnfteIdle(() => safeRun(initHeroTyping), { timeout: 500 });
+            }, 40);
+        });
+        cnfteObserver.observe(document.body, { childList: true, subtree: true });
+    })();
+</script>

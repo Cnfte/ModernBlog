@@ -1,0 +1,12 @@
+# ModernBlogPanel 后端依赖
+# 安装：pip install -r requirements.txt --break-system-packages
+
+Flask>=3.0
+Jinja2>=3.1
+Markdown>=3.5
+python-frontmatter>=1.1
+Pygments>=2.17        # markdown 的 codehilite 扩展用它做代码高亮，不装也能跑，只是没高亮
+
+# 音乐播放器 · 音频库（audio_manager.py）用来解析 mp3/flac 的标题/歌手/时长/内嵌歌词
+# 不装的话音频照样能上传播放，只是这些元数据解析不出来，会静默降级为空
+mutagen>=1.47

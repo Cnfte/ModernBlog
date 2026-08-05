@@ -1,0 +1,22 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# ── 构建产物 ──
+public/
+
+# ── 用户数据 ──
+content/
+backups/
+
+# ── 缓存 ──
+.indexnow_urls.json
+
+# ── IDE ──
+.vscode/
+.idea/
+
+# ── 系统 ──
+.DS_Store
+Thumbs.db
