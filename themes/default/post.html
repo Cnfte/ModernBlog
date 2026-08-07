@@ -356,13 +356,21 @@
             overflow-y: auto;
             text-align: center;
             box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
-            transform: scale(.82) translateY(24px);
+            /* iOS 风格"从触发点弹出"：初始态用 JS（见 applyMorphOrigin）把面板
+               缩放/位移到菜单键的实际屏幕位置和大小，这里只声明变量默认值兜底
+               （没跑 JS 之前，比如禁用脚本时）——真正弹出效果由 --morph-* 决定，
+               不再是固定的"从中间缩小弹出"。 */
+            --morph-x: 0px;
+            --morph-y: 24px;
+            --morph-sx: .82;
+            --morph-sy: .82;
+            transform: translate(var(--morph-x), var(--morph-y)) scale(var(--morph-sx), var(--morph-sy));
             opacity: 0;
-            transition: transform .5s var(--ease-spring), opacity .4s var(--ease-out);
+            transition: transform .55s var(--ease-spring), opacity .4s var(--ease-out);
         }
 
         .nav-menu-overlay.open .nav-menu-panel {
-            transform: scale(1) translateY(0);
+            transform: translate(0, 0) scale(1, 1);
             opacity: 1;
         }
 
@@ -1953,7 +1961,7 @@
 
     <div class="nav-menu-overlay" id="nav-menu-overlay">
         <div class="nav-menu-backdrop" id="nav-menu-backdrop"></div>
-        <div class="nav-menu-panel" role="dialog" aria-modal="true" aria-label="站点菜单">
+        <div class="nav-menu-panel" id="nav-menu-panel" role="dialog" aria-modal="true" aria-label="站点菜单">
             <button class="nav-menu-close" id="nav-menu-close" aria-label="关闭菜单">
                 <i class="fas fa-xmark" aria-hidden="true"></i>
             </button>
@@ -2390,11 +2398,16 @@
         bindSearch();
 
         // ── 左侧菜单键：点开从中间弹出的站点菜单 ──
+        // ── 左侧菜单键：点开从菜单键位置"长出来"的站点菜单（iOS 打开应用式）──
         function setNavMenuOpen(open) {
             const overlay = document.getElementById('nav-menu-overlay');
             const btn = document.getElementById('nav-menu-toggle');
+            const panel = document.getElementById('nav-menu-panel');
             if (!overlay) return;
             const o = open !== undefined ? open : !overlay.classList.contains('open');
+            // 打开前先量出菜单键的真实屏幕位置/尺寸，让面板从那一点开始放大+滑动，
+            // 而不是固定地从屏幕正中间缩放出来；applyMorphOrigin 定义在 _enhance.html。
+            if (o && btn && panel && window.applyMorphOrigin) window.applyMorphOrigin(btn, panel);
             overlay.classList.toggle('open', o);
             document.body.classList.toggle('nav-menu-locked', o);
             if (btn) btn.setAttribute('aria-expanded', o ? 'true' : 'false');

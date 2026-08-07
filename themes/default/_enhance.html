@@ -367,15 +367,20 @@
         box-shadow: var(--shadow);
         opacity: 0;
         visibility: hidden;
-        transform: translateY(14px) scale(.95);
-        transform-origin: bottom left;
-        transition: opacity .25s var(--ease-out), transform .25s var(--ease-out), visibility .25s;
+        /* 默认值兜底（JS 未跑起来时），实际弹出点由 applyMorphOrigin 写入
+           --morph-* 变量决定，从设置按钮那一点放大+滑动出来 */
+        --morph-x: 0px;
+        --morph-y: 14px;
+        --morph-sx: .95;
+        --morph-sy: .95;
+        transform: translate(var(--morph-x), var(--morph-y)) scale(var(--morph-sx), var(--morph-sy));
+        transition: opacity .35s var(--ease-out), transform .45s var(--ease-spring), visibility .35s;
     }
 
     #cnfte-settings-panel.open {
         opacity: 1;
         visibility: visible;
-        transform: translateY(0) scale(1);
+        transform: translate(0, 0) scale(1, 1);
     }
 
     #cnfte-settings-panel h3 {
@@ -653,6 +658,17 @@
         filter: brightness(1.08);
     }
 
+    /* 分片下载期间的加载进度环：用 conic-gradient 按 --load-pct 画出一圈进度，
+       弱网下即使下载要好几秒，按钮也一直有"在动"的反馈，不是点了就没反应地卡住 */
+    .player-btn-play.loading {
+        background: conic-gradient(var(--accent) var(--load-pct, 0%), rgba(255, 255, 255, .14) 0);
+        transition: background .2s linear;
+    }
+
+    .player-btn-play.loading #player-play-icon {
+        opacity: .45;
+    }
+
     .player-btn-mode.mode-random {
         color: var(--accent);
     }
@@ -818,6 +834,49 @@
         // 的观察者引用，在打字过程中临时 disconnect，打完再重新 observe。
         let cnfteObserver = null;
 
+        // ── 通用"从触发点弹出"动效（iOS 打开应用式）──
+        // 给面板/弹层量出触发按钮和面板自己（已按最终态布局好，只是
+        // opacity:0/visibility:hidden，所以 getBoundingClientRect 量到的就是
+        // 真实的最终位置和尺寸）之间的中心点偏移 + 宽高缩放比，写成 CSS 变量
+        // --morph-x/--morph-y/--morph-sx/--morph-sy。面板 CSS 的初始态用这几个
+        // 变量做 translate+scale，配合 spring 缓动，效果就是"从按钮那一点长出来"，
+        // 而不是固定地在屏幕/容器正中间缩放淡入。
+        // 需要在面板 display 不是 none（哪怕 visibility:hidden）的前提下调用，
+        // 否则量不出真实尺寸；调用时机固定在"即将加 .open class 之前"。
+        function applyMorphOrigin(triggerEl, panelEl) {
+            if (!triggerEl || !panelEl) return;
+            const t = triggerEl.getBoundingClientRect();
+            const p = panelEl.getBoundingClientRect();
+            if (!p.width || !p.height) return; // 面板还没有真实尺寸（例如首次渲染前），放弃，退回默认值
+            const tCenterX = t.left + t.width / 2;
+            const tCenterY = t.top + t.height / 2;
+            const pCenterX = p.left + p.width / 2;
+            const pCenterY = p.top + p.height / 2;
+            panelEl.style.setProperty('--morph-x', (tCenterX - pCenterX).toFixed(1) + 'px');
+            panelEl.style.setProperty('--morph-y', (tCenterY - pCenterY).toFixed(1) + 'px');
+            // 缩放比下限夹住，避免按钮极小（比如一个 34px 的圆按钮对一个 400px 宽面板）
+            // 时初始态缩得太夸张、动画看起来像个点在炸开而不是"长出来"
+            panelEl.style.setProperty('--morph-sx', Math.max(t.width / p.width, 0.12).toFixed(3));
+            panelEl.style.setProperty('--morph-sy', Math.max(t.height / p.height, 0.12).toFixed(3));
+        }
+        window.applyMorphOrigin = applyMorphOrigin;
+
+        // 站点公告弹窗是纯 CSS checkbox（#notice-toggle）驱动的，本身不会触发任何
+        // JS 点击事件；这里单独给触发它的 .notice-open-label 挂一个 click 监听，
+        // 只做一件事：在浏览器执行 label 的默认动作（勾选 checkbox）之前，先量出
+        // 这次点击是从哪个按钮触发的，写进 --morph-* 变量，让公告框跟设置面板/
+        // 站点菜单一样"从点击的那个按钮弹出来"，而不是固定地在屏幕正中间放大。
+        function bindNoticeModal() {
+            const box = document.getElementById('notice-box');
+            if (!box) return;
+            document.querySelectorAll('.notice-open-label').forEach(label => {
+                if (label._noticeBound) return;
+                label._noticeBound = true;
+                label.addEventListener('click', () => applyMorphOrigin(label, box));
+            });
+        }
+        window.bindNoticeModal = bindNoticeModal;
+
         function hexToRgb(hex) {
             const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
             return m ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) } : null;
@@ -899,6 +958,7 @@
 
             btn.addEventListener('click', () => {
                 const open = !panel.classList.contains('open');
+                if (open) applyMorphOrigin(btn, panel);
                 panel.classList.toggle('open', open);
                 btn.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
@@ -1272,7 +1332,167 @@
             plainIdx: 0,
             plainTimer: null,
             dragging: false,
+            loadToken: 0,
         };
+
+        // ── 音频并行分片加速器 ──
+        // 背景：国内在弱网/被限速的环境下访问 Cloudflare 等外站资源，单条 HTTP
+        // 连接经常被限到只有几 KB/s，几 MB 的歌曲文件单流慢慢下就会卡很久；
+        // 但同源开多条并行 Range 请求分段拉取，实测聚合吞吐能明显好于单流
+        // （原理类似下载器的多线程分段下载）。这里把整个音频文件按 Range 头
+        // 切成若干段并行 fetch，拼成 Blob 后转成 blob: URL 再交给 <audio>，
+        // 而不是直接把远程 URL 丢给 <audio> element 让浏览器自己单流加载。
+        //
+        // 边界情况全部做了降级，保证"至少能放"是底线：
+        //   - 服务器/CDN 不支持 Range → 直接走一次性 fetch（仍然是流式读，可
+        //     以报进度），不强行分片。
+        //   - 分片下载过程中任何一步失败 → 直接把原始 URL 交给 <audio>，退回
+        //     浏览器原生加载，加速逻辑本身的问题绝不能导致播放失败。
+        //   - 文件很小（< 512KB）→ 不值得拆分，直接整段拉。
+        const AudioAccel = (() => {
+            const CHUNK_COUNT = 6;
+            const MIN_SIZE_FOR_SPLIT = 512 * 1024;
+            const MAX_CACHED_TRACKS = 4; // 内存里最多同时挂着这么多首歌的 blob，防止播放列表一多就把内存吃爆
+            const cache = new Map();   // trackId -> { blobUrl, size }
+            const inflight = new Map(); // trackId -> { controller, promise }
+
+            async function probe(url, signal) {
+                // 用 Range: bytes=0-1 顺带探测服务器是否支持 Range（返回 206 才算支持）
+                // 并拿到 Content-Range 里的文件总大小；比单独发 HEAD 更可靠——部分
+                // 静态托管环境对 HEAD 处理不完整，但 Range GET 通常没问题。
+                const res = await fetch(url, { headers: { Range: 'bytes=0-1' }, signal });
+                const acceptRanges = res.status === 206;
+                let size = 0;
+                const cr = res.headers.get('Content-Range');
+                if (cr) {
+                    const m = /\/(\d+)\s*$/.exec(cr);
+                    if (m) size = parseInt(m[1], 10);
+                }
+                if (!size) {
+                    const cl = res.headers.get('Content-Length');
+                    if (cl) size = parseInt(cl, 10) + (acceptRanges ? 0 : 0);
+                }
+                // 消费掉探测请求的 body，避免连接悬着不释放
+                try { await res.arrayBuffer(); } catch (_) {}
+                return { acceptRanges, size };
+            }
+
+            function splitRanges(size, n) {
+                const chunk = Math.ceil(size / n);
+                const ranges = [];
+                for (let i = 0; i < n; i++) {
+                    const start = i * chunk;
+                    if (start >= size) break;
+                    ranges.push([start, Math.min(start + chunk - 1, size - 1)]);
+                }
+                return ranges.length ? ranges : [[0, size - 1]];
+            }
+
+            async function readAll(res) {
+                if (!res.body || !res.body.getReader) {
+                    // 极少数环境没有 streams reader，退化成一把梭
+                    return new Uint8Array(await res.arrayBuffer());
+                }
+                const reader = res.body.getReader();
+                const parts = [];
+                let total = 0;
+                for (;;) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    parts.push(value);
+                    total += value.length;
+                }
+                return { parts, total };
+            }
+
+            async function fetchChunked(url, size, onProgress, signal) {
+                const ranges = splitRanges(size, CHUNK_COUNT);
+                const buffers = new Array(ranges.length);
+                const loaded = new Array(ranges.length).fill(0);
+                const report = () => onProgress(loaded.reduce((a, b) => a + b, 0) / size);
+                await Promise.all(ranges.map(async ([start, end], idx) => {
+                    const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` }, signal });
+                    if (res.status !== 206 && res.status !== 200) throw new Error('分片下载失败: ' + res.status);
+                    const reader = res.body.getReader();
+                    const parts = [];
+                    for (;;) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        parts.push(value);
+                        loaded[idx] += value.length;
+                        report();
+                    }
+                    buffers[idx] = new Blob(parts);
+                }));
+                return new Blob(buffers);
+            }
+
+            async function fetchWhole(url, onProgress, signal) {
+                const res = await fetch(url, { signal });
+                if (!res.ok) throw new Error('下载失败: ' + res.status);
+                const total = parseInt(res.headers.get('Content-Length') || '0', 10);
+                const reader = res.body.getReader();
+                const parts = [];
+                let loaded = 0;
+                for (;;) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    parts.push(value);
+                    loaded += value.length;
+                    if (total) onProgress(loaded / total);
+                }
+                return new Blob(parts);
+            }
+
+            function evict(exceptId) {
+                if (cache.size <= MAX_CACHED_TRACKS) return;
+                for (const [id, item] of cache) {
+                    if (id === exceptId) continue;
+                    URL.revokeObjectURL(item.blobUrl);
+                    cache.delete(id);
+                    if (cache.size <= MAX_CACHED_TRACKS) break;
+                }
+            }
+
+            function cancel(trackId) {
+                const task = inflight.get(trackId);
+                if (task) { task.controller.abort(); inflight.delete(trackId); }
+            }
+
+            // 返回值：成功时是可直接扔给 <audio>.src 的地址（blob: URL 或原始 URL 兜底），
+            // 被取消（切歌）时返回 null。onProgress(0~1) 在下载过程中持续回调。
+            function load(trackId, url, onProgress) {
+                if (cache.has(trackId)) return Promise.resolve(cache.get(trackId).blobUrl);
+                if (inflight.has(trackId)) return inflight.get(trackId).promise;
+
+                const controller = new AbortController();
+                const promise = (async () => {
+                    let blob;
+                    try {
+                        const { acceptRanges, size } = await probe(url, controller.signal);
+                        if (acceptRanges && size > MIN_SIZE_FOR_SPLIT) {
+                            blob = await fetchChunked(url, size, onProgress, controller.signal);
+                        } else {
+                            blob = await fetchWhole(url, onProgress, controller.signal);
+                        }
+                    } catch (e) {
+                        inflight.delete(trackId);
+                        if (e && e.name === 'AbortError') return null;
+                        // 加速下载路径本身出问题：不阻塞播放，直接把原始地址交回去，
+                        // 让 <audio> 用浏览器原生方式加载兜底
+                        return url;
+                    }
+                    inflight.delete(trackId);
+                    const blobUrl = URL.createObjectURL(blob);
+                    cache.set(trackId, { blobUrl, size: blob.size });
+                    return blobUrl;
+                })();
+                inflight.set(trackId, { controller, promise });
+                return promise;
+            }
+
+            return { load, cancel, evict, has: id => cache.has(id) };
+        })();
 
         function fmtTime(sec) {
             sec = Math.max(0, Math.floor(sec || 0));
@@ -1389,26 +1609,75 @@
             }
         }
 
+        // 播放按钮上的加载进度环：loading=false 时清掉样式；loading=true 时按 pct(0~1)
+        // 更新一个 conic-gradient 进度圈，弱网下分片还没下完也能看出"在动"，
+        // 而不是点了播放之后界面像卡死一样没有任何反馈。
+        function setPlayerLoading(loading, pct) {
+            const btn = document.getElementById('player-play');
+            if (!btn) return;
+            btn.classList.toggle('loading', !!loading);
+            if (loading) btn.style.setProperty('--load-pct', Math.round((pct || 0) * 100) + '%');
+        }
+
+        // 顺序/单曲模式下预取"下一首"，随机模式下顺序不确定就不猜；用空闲时间跑，
+        // 不跟当前正在播的这首抢带宽。命中缓存的话 AudioAccel.load 会立刻 resolve。
+        function prefetchAdjacent(i) {
+            if (cnftePlayer.mode === 'random' || !cnftePlayer.tracks.length) return;
+            const next = cnftePlayer.tracks[(i + 1) % cnftePlayer.tracks.length];
+            if (!next || AudioAccel.has(next.id)) return;
+            cnfteIdle(() => AudioAccel.load(next.id, next.url, () => {}));
+        }
+
         function loadTrack(i, autoplay) {
             if (!cnftePlayer.tracks.length) return;
             i = ((i % cnftePlayer.tracks.length) + cnftePlayer.tracks.length) % cnftePlayer.tracks.length;
             cnftePlayer.index = i;
             const track = cnftePlayer.tracks[i];
             const audioEl = cnftePlayer.audioEl;
-            if (audioEl.dataset.srcId !== track.id) {
-                audioEl.src = track.url;
-                audioEl.dataset.srcId = track.id;
-            }
             loadLyricsFor(track);
             localStorage.setItem(PLAYER_LS.index, String(i));
-            if (autoplay) audioEl.play().catch(() => {});
             renderPlayerWidget();
+
+            if (audioEl.dataset.srcId === track.id) {
+                // 已经是当前这首（比如恢复播放状态时重复调用），不用重新走一遍加载
+                if (autoplay) audioEl.play().catch(() => {});
+                return;
+            }
+
+            // loadToken 用来丢弃"过期"的加载结果：分片下载期间如果用户又切了别的歌，
+            // 旧请求即使后下载完也不会再被塞进 audioEl.src，避免抢播/串轨。
+            const myToken = ++cnftePlayer.loadToken;
+            audioEl.dataset.srcId = track.id;
+            audioEl.removeAttribute('src');
+            setPlayerLoading(true, 0);
+
+            AudioAccel.load(track.id, track.url, pct => {
+                if (cnftePlayer.loadToken === myToken) setPlayerLoading(true, pct);
+            }).then(playableUrl => {
+                if (cnftePlayer.loadToken !== myToken) return; // 已经切到别的歌了，这次结果作废
+                setPlayerLoading(false);
+                if (!playableUrl) return; // 被取消
+                audioEl.src = playableUrl;
+                // autoplay 是这次 loadTrack 调用时就要求播放；pendingPlay 是下载还没
+                // 完成时用户又手动点了播放按钮——两种情况都应该在这里真正开始播放。
+                if (autoplay || cnftePlayer.pendingPlay) audioEl.play().catch(() => {});
+                cnftePlayer.pendingPlay = false;
+                AudioAccel.evict(track.id);
+                prefetchAdjacent(i);
+            });
         }
 
         function togglePlay() {
             const audioEl = cnftePlayer.audioEl;
             if (!audioEl || !cnftePlayer.tracks.length) return;
-            if (!audioEl.src) { loadTrack(cnftePlayer.index >= 0 ? cnftePlayer.index : 0, true); return; }
+            if (!audioEl.dataset.srcId) { loadTrack(cnftePlayer.index >= 0 ? cnftePlayer.index : 0, true); return; }
+            if (!audioEl.src) {
+                // 目标歌曲已经指定但分片还在下载中：记下"用户想播放"，等下载完
+                // 成后自动接着播，而不是让这次点击白点
+                cnftePlayer.pendingPlay = true;
+                setPlayerLoading(true, 0);
+                return;
+            }
             if (audioEl.paused) audioEl.play().catch(() => {}); else audioEl.pause();
         }
 
@@ -1594,6 +1863,7 @@
 
         safeRun(applyPersistedUI);
         safeRun(bindSettingsPanel);
+        safeRun(bindNoticeModal);
         safeRun(bindBackToTop);
         safeRun(initTagsHubView);
         safeRun(initArchiveFilters);
@@ -1608,6 +1878,7 @@
             debounceTimer = setTimeout(() => {
                 safeRun(applyPersistedUI);
                 safeRun(bindSettingsPanel);
+                safeRun(bindNoticeModal);
                 safeRun(bindBackToTop);
                 safeRun(initTagsHubView);
                 safeRun(initArchiveFilters);
