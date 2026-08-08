@@ -230,6 +230,14 @@
         align-items: center;
         gap: 8px;
         flex-wrap: wrap;
+        margin-bottom: 0;
+        transition: margin-bottom .2s var(--ease-out);
+    }
+
+    /* 只有真的有筛选条件在生效（"清除筛选"那颗 chip 显示出来）时才占这 16px
+       的下边距；平时是空的，不占位，这样文章卡片列的第一张卡片顶部才能跟
+       侧栏第一个 widget（播放器）的顶部真正对齐，不会平白多出一截空隙。 */
+    #cnfte-filter-bar.has-active-filter {
         margin-bottom: 16px;
     }
 
@@ -533,7 +541,7 @@
        上下相邻的几句始终留在视野里（提前露出下一句，不会毫无征兆地蹦出来）。 */
     .player-lyric {
         position: relative;
-        height: 76px;
+        height: 128px;
         overflow: hidden;
         margin-bottom: 10px;
         mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
@@ -567,6 +575,20 @@
         opacity: .95;
         font-size: .82rem;
         font-weight: 600;
+    }
+
+    /* 原文 / 翻译拆成两块后各自的样式：翻译永远单独一行、比原文稍小更淡，
+       不参与父级的 font-size 动画（避免高亮时翻译文字跟着原文一起变大显得
+       过重），颜色继续跟随父级 .player-lyric-item 的 color 过渡即可。 */
+    .lyric-main {
+        display: block;
+    }
+
+    .lyric-trans {
+        display: block;
+        font-size: .85em;
+        opacity: .8;
+        margin-top: 2px;
     }
 
     .player-progress-track {
@@ -704,6 +726,9 @@
         max-height: 260px;
         overflow-y: auto;
         margin-top: 14px;
+        /* 给滚动条留一点内缩空间，不贴着卡片圆角内壁走 */
+        padding-right: 4px;
+        scrollbar-width: thin;
     }
 
     .player-playlist-item {
@@ -1266,8 +1291,11 @@
                 document.querySelectorAll('.cnfte-chip[data-cat]').forEach(el => el.classList.toggle('active', el.dataset.cat === state.category));
                 document.querySelectorAll('.cnfte-chip[data-tag]').forEach(el => el.classList.toggle('active', el.dataset.tag === state.tag));
                 document.querySelectorAll('.cnfte-archive-row[data-month]').forEach(el => el.classList.toggle('active', el.dataset.month === state.month && el.dataset.year === state.year));
+                const hasFilter = !!(state.category || state.tag || state.year);
                 const clearBtn = document.getElementById('cnfte-clear-filter');
-                if (clearBtn) clearBtn.classList.toggle('show', !!(state.category || state.tag || state.year));
+                if (clearBtn) clearBtn.classList.toggle('show', hasFilter);
+                const filterBarEl = document.getElementById('cnfte-filter-bar');
+                if (filterBarEl) filterBarEl.classList.toggle('has-active-filter', hasFilter);
             }
 
             document.querySelectorAll('.cnfte-chip[data-cat]').forEach(el => {
@@ -1373,24 +1401,47 @@
             }
         }
 
+        function _escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // 很多歌词行是"原文 + (翻译：……)"写在同一段文字里的，交给浏览器自然
+        // 换行的话，换行点完全不可控——翻译词组经常被从中间硬切到下一行，
+        // 导致有的歌词两行长短对不上、看起来很乱（"不对齐"）。这里把原文和
+        // 翻译显式拆成两个独立的块各自渲染，不管内容多长，两块各自居中换行，
+        // 视觉上稳定成"原文一段 + 翻译一段"，翻译词组不会再被腰斩。
+        const _LYRIC_TRANS_RE = /^(.*?)\s*(\((?:翻译|翻譯)[:：][\s\S]*\))\s*$/;
+
+        function _renderLyricLineHTML(text) {
+            const raw = String(text || '');
+            const m = _LYRIC_TRANS_RE.exec(raw);
+            if (m && m[1].trim()) {
+                return `<div class="player-lyric-item">`
+                    + `<div class="lyric-main">${_escapeHtml(m[1].trim())}</div>`
+                    + `<div class="lyric-trans">${_escapeHtml(m[2].trim())}</div>`
+                    + `</div>`;
+            }
+            return `<div class="player-lyric-item"><div class="lyric-main">${_escapeHtml(raw)}</div></div>`;
+        }
+
         // 把当前 lyricMode 对应的整份歌词一次性渲染进 .player-lyric-list，
         // 具体某一行的高亮/滚动交给 scrollLyricToIndex 单独处理。
         function renderLyricList() {
             const listEl = document.getElementById('player-lyric-list');
             if (!listEl) return;
             if (cnftePlayer.lyricMode === 'synced') {
-                listEl.innerHTML = cnftePlayer.lyricLines.map(l =>
-                    `<div class="player-lyric-item">${l.text || ''}</div>`).join('');
+                listEl.innerHTML = cnftePlayer.lyricLines.map(l => _renderLyricLineHTML(l.text)).join('');
             } else if (cnftePlayer.lyricMode === 'plain') {
-                listEl.innerHTML = cnftePlayer.plainLines.map(t =>
-                    `<div class="player-lyric-item">${t}</div>`).join('');
+                listEl.innerHTML = cnftePlayer.plainLines.map(t => _renderLyricLineHTML(t)).join('');
             } else {
-                listEl.innerHTML = '<div class="player-lyric-item">暂无歌词</div>';
+                listEl.innerHTML = '<div class="player-lyric-item"><div class="lyric-main">暂无歌词</div></div>';
             }
         }
 
         // 把第 idx 行滚到 .player-lyric 容器正中间并高亮，其余行取消高亮；
         // 用 transform 整体平移列表（配合 CSS 的 transition 做平滑滚动）。
+        // 歌词区本身够高（见 .player-lyric 的 height），够容纳长句换行后的
+        // 2~3 行，不再需要撑宽卡片宽度这种效果。
         function scrollLyricToIndex(idx) {
             const listEl = document.getElementById('player-lyric-list');
             const container = document.getElementById('player-lyric');
@@ -1424,6 +1475,8 @@
             }
 
             renderLyricList();
+            console.log('[player] loadLyricsFor', track && track.title, '-> mode=', cnftePlayer.lyricMode,
+                'lines=', cnftePlayer.lyricMode === 'synced' ? cnftePlayer.lyricLines.length : cnftePlayer.plainLines.length);
             // 如果切歌发生在播放中（比如上一首自然播完自动切下一首），
             // 无时间戳的整段歌词要立刻续上轮播，不用等下一次 play 事件。
             if (cnftePlayer.lyricMode === 'plain' && cnftePlayer.audioEl && !cnftePlayer.audioEl.paused) {
@@ -1517,7 +1570,7 @@
                 audioEl.src = track.url;
                 audioEl.dataset.srcId = track.id;
             }
-            if (autoplay) audioEl.play().catch(() => {});
+            if (autoplay) audioEl.play().catch(err => console.error('[player] play() 失败:', err, 'track=', track && track.url));
             prefetchAdjacent(i);
         }
 
@@ -1525,7 +1578,7 @@
             const audioEl = cnftePlayer.audioEl;
             if (!audioEl || !cnftePlayer.tracks.length) return;
             if (!audioEl.dataset.srcId) { loadTrack(cnftePlayer.index >= 0 ? cnftePlayer.index : 0, true); return; }
-            if (audioEl.paused) audioEl.play().catch(() => {}); else audioEl.pause();
+            if (audioEl.paused) audioEl.play().catch(err => console.error('[player] play() 失败:', err, 'src=', audioEl.currentSrc)); else audioEl.pause();
         }
 
         function playNext(manual) {
@@ -1682,6 +1735,11 @@
                 if (cnftePlayer.tracks[cnftePlayer.index]) {
                     loadLyricsFor(cnftePlayer.tracks[cnftePlayer.index]);
                 }
+                audioEl.addEventListener('error', () => {
+                    const err = audioEl.error;
+                    const codeMap = { 1: 'MEDIA_ERR_ABORTED', 2: 'MEDIA_ERR_NETWORK', 3: 'MEDIA_ERR_DECODE', 4: 'MEDIA_ERR_SRC_NOT_SUPPORTED' };
+                    console.error('[player] <audio> error:', err && codeMap[err.code], err, 'currentSrc=', audioEl.currentSrc);
+                });
                 audioEl.addEventListener('timeupdate', updateProgressUI);
                 audioEl.addEventListener('loadedmetadata', updateProgressUI);
                 audioEl.addEventListener('play', () => {
@@ -1700,6 +1758,17 @@
                 audioEl.addEventListener('waiting', () => { const b = playBtn(); if (b) b.classList.add('loading'); });
                 audioEl.addEventListener('playing', () => { const b = playBtn(); if (b) b.classList.remove('loading'); });
                 audioEl.addEventListener('canplay', () => { const b = playBtn(); if (b) b.classList.remove('loading'); });
+
+                // 窗口尺寸变化时（拖拽调整浏览器宽度等），换行位置可能变化，
+                // 重新按当前行居中一次，避免高亮行跑偏。
+                let lyricResizeTimer;
+                window.addEventListener('resize', () => {
+                    clearTimeout(lyricResizeTimer);
+                    lyricResizeTimer = setTimeout(() => {
+                        const idx = cnftePlayer.lyricMode === 'plain' ? cnftePlayer.plainIdx : cnftePlayer.lyricIdx;
+                        scrollLyricToIndex(idx);
+                    }, 150);
+                });
             }
             renderPlayerWidget();
         }
