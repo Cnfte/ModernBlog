@@ -2284,6 +2284,24 @@ def api_audio_stream(fname):
     return send_from_directory(d, real_name, conditional=True)
 
 
+@app.route('/audio-accel-sw.js')
+def audio_accel_sw():
+    # 面板本地预览也走一遍并行分片加速 Service Worker，跟构建产物用的是同一份
+    # 源文件（themes/default/audio-accel-sw.js），只是这里直接从主题目录读出来
+    # 返回，不需要真的复制一份到面板的静态目录里。
+    theme_dir = os.path.join(BASE_DIR, 'themes', 'default')
+    sw_path = os.path.join(theme_dir, 'audio-accel-sw.js')
+    if not os.path.exists(sw_path):
+        return ('', 404)
+    resp = send_from_directory(theme_dir, 'audio-accel-sw.js')
+    resp.headers['Content-Type'] = 'text/javascript; charset=utf-8'
+    # Service Worker 脚本按规范必须允许在其请求路径的作用域内被注册；
+    # 显式给个宽松一点的 Service-Worker-Allowed，面板预览路由跟真实站点的
+    # 目录结构未必一致，避免作用域被浏览器判定超出脚本所在目录而注册失败
+    resp.headers['Service-Worker-Allowed'] = '/'
+    return resp
+
+
 def _do_build():
     _broadcast_log("⏳ 开始构建...")
     if _builder_mod is None:

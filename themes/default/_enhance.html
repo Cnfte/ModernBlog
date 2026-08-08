@@ -651,6 +651,7 @@
         font-size: 1.05rem;
         background: var(--grad);
         color: #0a0a12;
+        position: relative;
     }
 
     .player-btn-play:hover {
@@ -658,15 +659,29 @@
         filter: brightness(1.08);
     }
 
-    /* 分片下载期间的加载进度环：用 conic-gradient 按 --load-pct 画出一圈进度，
-       弱网下即使下载要好几秒，按钮也一直有"在动"的反馈，不是点了就没反应地卡住 */
-    .player-btn-play.loading {
-        background: conic-gradient(var(--accent) var(--load-pct, 0%), rgba(255, 255, 255, .14) 0);
-        transition: background .2s linear;
+    /* 缓冲不足時（比如刚切歌、或者弱网下加速也追不上播放速度导致卡顿）转圈提示，
+       状态直接来自 <audio> 的 waiting/playing 原生事件，不是自己算的假进度——
+       流式播放没有一个能准确代表"还要等多久"的百分比，只有"现在是不是在等" */
+    .player-btn-play.loading #player-play-icon {
+        opacity: 0;
     }
 
-    .player-btn-play.loading #player-play-icon {
-        opacity: .45;
+    .player-btn-play.loading::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 16px;
+        height: 16px;
+        margin: -8px 0 0 -8px;
+        border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, .3);
+        border-top-color: #fff;
+        animation: playerSpin .7s linear infinite;
+    }
+
+    @keyframes playerSpin {
+        to { transform: rotate(360deg); }
     }
 
     .player-btn-mode.mode-random {
@@ -1332,300 +1347,157 @@
             plainIdx: 0,
             plainTimer: null,
             dragging: false,
-            loadToken: 0,
         };
 
-        // ── 音频并行分片加速器 ──
-        // 背景：国内在弱网/被限速的环境下访问 Cloudflare 等外站资源，单条 HTTP
-        // 连接经常被限到只有几 KB/s，几 MB 的歌曲文件单流慢慢下就会卡很久；
-        // 但同源开多条并行 Range 请求分段拉取，实测聚合吞吐能明显好于单流
-        // （原理类似下载器的多线程分段下载）。这里把整个音频文件按 Range 头
-        // 切成若干段并行 fetch，拼成 Blob 后转成 blob: URL 再交给 <audio>，
-        // 而不是直接把远程 URL 丢给 <audio> element 让浏览器自己单流加载。
-        //
-        // 边界情况全部做了降级，保证"至少能放"是底线：
-        //   - 服务器/CDN 不支持 Range → 直接走一次性 fetch（仍然是流式读，可
-        //     以报进度），不强行分片。
-        //   - 分片下载过程中任何一步失败 → 直接把原始 URL 交给 <audio>，退回
-        //     浏览器原生加载，加速逻辑本身的问题绝不能导致播放失败。
-        //   - 文件很小（< 512KB）→ 不值得拆分，直接整段拉。
-        const AudioAccel = (() => {
-            const CHUNK_COUNT = 6;
-            const MIN_SIZE_FOR_SPLIT = 512 * 1024;
-            const MAX_CACHED_TRACKS = 4; // 内存里最多同时挂着这么多首歌的 blob，防止播放列表一多就把内存吃爆
-            const cache = new Map();   // trackId -> { blobUrl, size }
-            const inflight = new Map(); // trackId -> { controller, promise }
-
-            async function probe(url, signal) {
-                // 用 Range: bytes=0-1 顺带探测服务器是否支持 Range（返回 206 才算支持）
-                // 并拿到 Content-Range 里的文件总大小；比单独发 HEAD 更可靠——部分
-                // 静态托管环境对 HEAD 处理不完整，但 Range GET 通常没问题。
-                const res = await fetch(url, { headers: { Range: 'bytes=0-1' }, signal });
-                const acceptRanges = res.status === 206;
-                let size = 0;
-                const cr = res.headers.get('Content-Range');
-                if (cr) {
-                    const m = /\/(\d+)\s*$/.exec(cr);
-                    if (m) size = parseInt(m[1], 10);
-                }
-                if (!size) {
-                    const cl = res.headers.get('Content-Length');
-                    if (cl) size = parseInt(cl, 10) + (acceptRanges ? 0 : 0);
-                }
-                // 消费掉探测请求的 body，避免连接悬着不释放
-                try { await res.arrayBuffer(); } catch (_) {}
-                return { acceptRanges, size };
-            }
-
-            function splitRanges(size, n) {
-                const chunk = Math.ceil(size / n);
-                const ranges = [];
-                for (let i = 0; i < n; i++) {
-                    const start = i * chunk;
-                    if (start >= size) break;
-                    ranges.push([start, Math.min(start + chunk - 1, size - 1)]);
-                }
-                return ranges.length ? ranges : [[0, size - 1]];
-            }
-
-            async function readAll(res) {
-                if (!res.body || !res.body.getReader) {
-                    // 极少数环境没有 streams reader，退化成一把梭
-                    return new Uint8Array(await res.arrayBuffer());
-                }
-                const reader = res.body.getReader();
-                const parts = [];
-                let total = 0;
-                for (;;) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    parts.push(value);
-                    total += value.length;
-                }
-                return { parts, total };
-            }
-
-            async function fetchChunked(url, size, onProgress, signal) {
-                const ranges = splitRanges(size, CHUNK_COUNT);
-                const buffers = new Array(ranges.length);
-                const loaded = new Array(ranges.length).fill(0);
-                const report = () => onProgress(loaded.reduce((a, b) => a + b, 0) / size);
-                await Promise.all(ranges.map(async ([start, end], idx) => {
-                    const res = await fetch(url, { headers: { Range: `bytes=${start}-${end}` }, signal });
-                    if (res.status !== 206 && res.status !== 200) throw new Error('分片下载失败: ' + res.status);
-                    const reader = res.body.getReader();
-                    const parts = [];
-                    for (;;) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        parts.push(value);
-                        loaded[idx] += value.length;
-                        report();
-                    }
-                    buffers[idx] = new Blob(parts);
-                }));
-                return new Blob(buffers);
-            }
-
-            async function fetchWhole(url, onProgress, signal) {
-                const res = await fetch(url, { signal });
-                if (!res.ok) throw new Error('下载失败: ' + res.status);
-                const total = parseInt(res.headers.get('Content-Length') || '0', 10);
-                const reader = res.body.getReader();
-                const parts = [];
-                let loaded = 0;
-                for (;;) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    parts.push(value);
-                    loaded += value.length;
-                    if (total) onProgress(loaded / total);
-                }
-                return new Blob(parts);
-            }
-
-            function evict(exceptId) {
-                if (cache.size <= MAX_CACHED_TRACKS) return;
-                for (const [id, item] of cache) {
-                    if (id === exceptId) continue;
-                    URL.revokeObjectURL(item.blobUrl);
-                    cache.delete(id);
-                    if (cache.size <= MAX_CACHED_TRACKS) break;
-                }
-            }
-
-            function cancel(trackId) {
-                const task = inflight.get(trackId);
-                if (task) { task.controller.abort(); inflight.delete(trackId); }
-            }
-
-            // 返回值：成功时是可直接扔给 <audio>.src 的地址（blob: URL 或原始 URL 兜底），
-            // 被取消（切歌）时返回 null。onProgress(0~1) 在下载过程中持续回调。
-            function load(trackId, url, onProgress) {
-                if (cache.has(trackId)) return Promise.resolve(cache.get(trackId).blobUrl);
-                if (inflight.has(trackId)) return inflight.get(trackId).promise;
-
-                const controller = new AbortController();
-                const promise = (async () => {
-                    let blob;
-                    try {
-                        const { acceptRanges, size } = await probe(url, controller.signal);
-                        if (acceptRanges && size > MIN_SIZE_FOR_SPLIT) {
-                            blob = await fetchChunked(url, size, onProgress, controller.signal);
-                        } else {
-                            blob = await fetchWhole(url, onProgress, controller.signal);
-                        }
-                    } catch (e) {
-                        inflight.delete(trackId);
-                        if (e && e.name === 'AbortError') return null;
-                        // 加速下载路径本身出问题：不阻塞播放，直接把原始地址交回去，
-                        // 让 <audio> 用浏览器原生方式加载兜底
-                        return url;
-                    }
-                    inflight.delete(trackId);
-                    const blobUrl = URL.createObjectURL(blob);
-                    cache.set(trackId, { blobUrl, size: blob.size });
-                    return blobUrl;
-                })();
-                inflight.set(trackId, { controller, promise });
-                return promise;
-            }
-
-            return { load, cancel, evict, has: id => cache.has(id) };
-        })();
-
+        // ── 时间格式化：秒 → m:ss（用于当前进度 / 总时长展示） ──
         function fmtTime(sec) {
-            sec = Math.max(0, Math.floor(sec || 0));
-            const m = Math.floor(sec / 60), s = sec % 60;
-            return `${m}:${String(s).padStart(2, '0')}`;
+            if (!isFinite(sec) || sec < 0) sec = 0;
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return m + ':' + String(s).padStart(2, '0');
         }
 
+        // ── 随机模式选下一首：避免连续两次选中同一首（歌单只有 1 首时直接返回它）──
         function pickRandomIndex(exclude) {
-            if (cnftePlayer.tracks.length <= 1) return 0;
-            let n;
-            do { n = Math.floor(Math.random() * cnftePlayer.tracks.length); } while (n === exclude);
-            return n;
-        }
-
-        // 保险：万一后端漏网，前端也把行首残留的 [mm:ss.xx] 时间戳去掉，
-        // 绝不能把时间戳原样露在界面上。
-        const LYRIC_TIME_PREFIX_RE = /^\[\d{1,2}:\d{2}(?:[.:]\d{1,3})?\]\s*/;
-        function cleanLyricText(text) {
-            if (!text) return '';
-            return String(text).replace(LYRIC_TIME_PREFIX_RE, '').trim();
-        }
-
-        function escapeLyricHtml(s) {
-            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-        }
-
-        // 整首歌词一次性渲染成纵向列表（synced / plain 都走这一套），
-        // 后面切换当前行只需要挪动 transform + 切 class，没有逐行替换 DOM 内容
-        // 的动画，观感是"滑过去+变色"，不会有单行淡出弹入的跳动感。
-        function buildLyricList(items) {
-            const listEl = document.getElementById('player-lyric-list');
-            if (!listEl) return;
-            if (!items.length) {
-                listEl.innerHTML = '';
-                listEl.style.transform = 'translateY(0)';
-                return;
-            }
-            listEl.innerHTML = items.map((text, i) =>
-                `<div class="player-lyric-item" data-idx="${i}">${escapeLyricHtml(cleanLyricText(text)) || '&nbsp;'}</div>`
-            ).join('');
-        }
-
-        // 把第 idx 行滚到容器正中间并高亮；idx 传 -1（还没到第一句歌词的
-        // 时间点）时按第 0 行定位，让第一句提前露出来，而不是干等一片空白。
-        // 歌词允许换行，每行实际高度不固定，所以定位用实际渲染出来的
-        // offsetTop / offsetHeight 现算，而不是"固定行高 × 序号"。
-        function scrollLyricTo(idx) {
-            const listEl = document.getElementById('player-lyric-list');
-            const container = document.getElementById('player-lyric');
-            if (!listEl) return;
-            const rows = listEl.children;
-            for (let i = 0; i < rows.length; i++) rows[i].classList.toggle('active', i === idx);
-            const visualIdx = Math.max(idx, 0);
-            const containerH = container ? container.clientHeight : 76;
-            const activeRow = rows[visualIdx];
-            const rowCenter = activeRow ? (activeRow.offsetTop + activeRow.offsetHeight / 2) : 0;
-            const offset = containerH / 2 - rowCenter;
-            listEl.style.transform = `translateY(${offset}px)`;
+            if (!cnftePlayer.tracks.length) return 0;
+            if (cnftePlayer.tracks.length === 1) return 0;
+            let i;
+            do { i = Math.floor(Math.random() * cnftePlayer.tracks.length); } while (i === exclude);
+            return i;
         }
 
         function clearPlainLyricTimer() {
-            if (cnftePlayer.plainTimer) { clearInterval(cnftePlayer.plainTimer); cnftePlayer.plainTimer = null; }
+            if (cnftePlayer.plainTimer) {
+                clearInterval(cnftePlayer.plainTimer);
+                cnftePlayer.plainTimer = null;
+            }
         }
 
-        // 无时间戳的整段歌词才会走这个轮播兜底；只在真正播放时才推进，
-        // 暂停时必须停表，不然会出现"暂停了歌词还在滚"的问题。
+        // 把当前 lyricMode 对应的整份歌词一次性渲染进 .player-lyric-list，
+        // 具体某一行的高亮/滚动交给 scrollLyricToIndex 单独处理。
+        function renderLyricList() {
+            const listEl = document.getElementById('player-lyric-list');
+            if (!listEl) return;
+            if (cnftePlayer.lyricMode === 'synced') {
+                listEl.innerHTML = cnftePlayer.lyricLines.map(l =>
+                    `<div class="player-lyric-item">${l.text || ''}</div>`).join('');
+            } else if (cnftePlayer.lyricMode === 'plain') {
+                listEl.innerHTML = cnftePlayer.plainLines.map(t =>
+                    `<div class="player-lyric-item">${t}</div>`).join('');
+            } else {
+                listEl.innerHTML = '<div class="player-lyric-item">暂无歌词</div>';
+            }
+        }
+
+        // 把第 idx 行滚到 .player-lyric 容器正中间并高亮，其余行取消高亮；
+        // 用 transform 整体平移列表（配合 CSS 的 transition 做平滑滚动）。
+        function scrollLyricToIndex(idx) {
+            const listEl = document.getElementById('player-lyric-list');
+            const container = document.getElementById('player-lyric');
+            if (!listEl || !container) return;
+            const items = listEl.querySelectorAll('.player-lyric-item');
+            items.forEach((el, i) => el.classList.toggle('active', i === idx));
+            const target = items[idx];
+            if (!target) { listEl.style.transform = 'translateY(0)'; return; }
+            const offset = target.offsetTop + target.offsetHeight / 2 - container.clientHeight / 2;
+            listEl.style.transform = `translateY(${-offset}px)`;
+        }
+
+        // 切歌时调用：track.lyrics 是构建期（builder.py -> audio_manager.export_for_build）
+        // 就已经解析好的 {mode, lines, text}，这里不需要也不应该再发请求去要歌词。
+        function loadLyricsFor(track) {
+            clearPlainLyricTimer();
+            cnftePlayer.lyricLines = [];
+            cnftePlayer.plainLines = [];
+            cnftePlayer.lyricIdx = -1;
+            cnftePlayer.plainIdx = 0;
+
+            const lyrics = track && track.lyrics;
+            if (lyrics && lyrics.mode === 'synced' && lyrics.lines && lyrics.lines.length) {
+                cnftePlayer.lyricMode = 'synced';
+                cnftePlayer.lyricLines = lyrics.lines;
+            } else if (lyrics && lyrics.mode === 'plain' && lyrics.text) {
+                cnftePlayer.lyricMode = 'plain';
+                cnftePlayer.plainLines = lyrics.text.split('\n').map(s => s.trim()).filter(Boolean);
+            } else {
+                cnftePlayer.lyricMode = 'none';
+            }
+
+            renderLyricList();
+            // 如果切歌发生在播放中（比如上一首自然播完自动切下一首），
+            // 无时间戳的整段歌词要立刻续上轮播，不用等下一次 play 事件。
+            if (cnftePlayer.lyricMode === 'plain' && cnftePlayer.audioEl && !cnftePlayer.audioEl.paused) {
+                startPlainLyricCycle();
+            }
+        }
+
+        // 按当前播放进度找到应该高亮的那一行（找最后一个 time <= currentTime 的行），
+        // 只有真正换行时才触发滚动，避免 timeupdate 每次都重排。
+        function syncLyricToTime(currentTime) {
+            if (cnftePlayer.lyricMode !== 'synced' || !cnftePlayer.lyricLines.length) return;
+            const lines = cnftePlayer.lyricLines;
+            let idx = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].time <= currentTime) idx = i; else break;
+            }
+            if (idx !== cnftePlayer.lyricIdx) {
+                cnftePlayer.lyricIdx = idx;
+                scrollLyricToIndex(idx);
+            }
+        }
+
+        // 没有时间戳的整段歌词：没法跟播放进度对齐，退化成固定间隔轮播展示。
         function startPlainLyricCycle() {
             clearPlainLyricTimer();
             if (!cnftePlayer.plainLines.length) return;
-            if (!cnftePlayer.plainIdx || cnftePlayer.plainIdx < 0) cnftePlayer.plainIdx = 0;
-            scrollLyricTo(cnftePlayer.plainIdx);
-            const audioEl = cnftePlayer.audioEl;
-            if (audioEl && audioEl.paused) return; // 暂停状态下不起定时器
+            scrollLyricToIndex(cnftePlayer.plainIdx);
             cnftePlayer.plainTimer = setInterval(() => {
                 cnftePlayer.plainIdx = (cnftePlayer.plainIdx + 1) % cnftePlayer.plainLines.length;
-                scrollLyricTo(cnftePlayer.plainIdx);
-            }, 4200);
+                scrollLyricToIndex(cnftePlayer.plainIdx);
+            }, 4000);
         }
 
-        function loadLyricsFor(track) {
-            clearPlainLyricTimer();
-            cnftePlayer.lyricIdx = -1;
-            cnftePlayer.plainIdx = 0;
-            const ly = track && track.lyrics;
-            if (ly && ly.mode === 'synced' && ly.lines && ly.lines.length) {
-                cnftePlayer.lyricMode = 'synced';
-                cnftePlayer.lyricLines = ly.lines;
-                buildLyricList(ly.lines.map(l => l.text));
-                scrollLyricTo(-1); // 提前把第一句露出来，不高亮，等真正到时间点再变色
-            } else if (ly && ly.mode === 'plain' && ly.text) {
-                cnftePlayer.lyricMode = 'plain';
-                cnftePlayer.plainLines = ly.text.split('\n').map(s => cleanLyricText(s)).filter(Boolean);
-                if (!cnftePlayer.plainLines.length) cnftePlayer.plainLines = [cleanLyricText(ly.text)];
-                buildLyricList(cnftePlayer.plainLines);
-                startPlainLyricCycle();
-            } else {
-                cnftePlayer.lyricMode = 'none';
-                cnftePlayer.lyricLines = [];
-                buildLyricList([]);
-            }
+        // ── 音频并行分片加速：走 Service Worker，不是"下完再播" ──
+        // 国内访问 Cloudflare/GitHub Pages 等海外托管资源时，单条 HTTP 连接经常被
+        // 限速到只有几 KB/s，几 MB 的歌曲文件单流下载会很慢。但如果先把整个文件
+        // 下载完（比如拼成一个 Blob）再交给 <audio> 播放，等待时间反而比浏览器
+        // 原生的流式加载更差——那只是把"卡在加载"换成了"卡在进度条"，不是真正
+        // 的流式加载。
+        //
+        // 真正的做法是注册一个 Service Worker（themes/default/audio-accel-sw.js），
+        // 拦截 <audio> 对音频文件发出的每一次请求（包括拖进度条产生的 Range 请求），
+        // 把请求的字节范围拆成几份并行向源站请求，但按顺序把数据依次写回给
+        // <audio>——下载在后台并行加速，播放端看到的还是一条完整有序的字节流，
+        // 下载到哪就能播到哪，不需要等全部下完。<audio>.src 还是直接指向真实地址，
+        // 该怎么播还是怎么播，加速对播放器逻辑完全透明。
+        //
+        // 这里只负责在页面加载时把这个 Service Worker 注册上；注册作用域限定在
+        // /audio/ 和 /api/audio/（分别对应构建产物和面板本地预览的音频路径），
+        // 不会跟站点可能已有的、作用域通常是根路径 / 的 Monetag sw.js 冲突。
+        // 任何环境不支持 Service Worker（比如非 HTTPS 的老式自建部署）都会静默
+        // 失败，<audio> 照样用浏览器原生的单流方式播放，只是没有加速。
+        function registerAudioAccelSW() {
+            if (!('serviceWorker' in navigator)) return;
+            ['/audio/', '/api/audio/'].forEach(scope => {
+                navigator.serviceWorker.register('/audio-accel-sw.js', { scope }).catch(() => {});
+            });
         }
 
-        function syncLyricToTime(t) {
-            if (cnftePlayer.lyricMode !== 'synced') return;
-            const lines = cnftePlayer.lyricLines;
-            let lo = 0, hi = lines.length - 1, ans = -1;
-            while (lo <= hi) {
-                const mid = (lo + hi) >> 1;
-                if (lines[mid].time <= t) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
-            }
-            if (ans !== cnftePlayer.lyricIdx) {
-                cnftePlayer.lyricIdx = ans;
-                scrollLyricTo(ans);
-            }
-        }
-
-        // 播放按钮上的加载进度环：loading=false 时清掉样式；loading=true 时按 pct(0~1)
-        // 更新一个 conic-gradient 进度圈，弱网下分片还没下完也能看出"在动"，
-        // 而不是点了播放之后界面像卡死一样没有任何反馈。
-        function setPlayerLoading(loading, pct) {
-            const btn = document.getElementById('player-play');
-            if (!btn) return;
-            btn.classList.toggle('loading', !!loading);
-            if (loading) btn.style.setProperty('--load-pct', Math.round((pct || 0) * 100) + '%');
-        }
-
-        // 顺序/单曲模式下预取"下一首"，随机模式下顺序不确定就不猜；用空闲时间跑，
-        // 不跟当前正在播的这首抢带宽。命中缓存的话 AudioAccel.load 会立刻 resolve。
+        // 顺序/单曲模式下用 <link rel="preload"> 预取"下一首"的音频文件到浏览器
+        // 磁盘缓存，真正点到那首歌时（不管走没走加速 SW）都能省掉一次完整下载；
+        // 随机模式下一首歌不确定，不猜。
         function prefetchAdjacent(i) {
             if (cnftePlayer.mode === 'random' || !cnftePlayer.tracks.length) return;
             const next = cnftePlayer.tracks[(i + 1) % cnftePlayer.tracks.length];
-            if (!next || AudioAccel.has(next.id)) return;
-            cnfteIdle(() => AudioAccel.load(next.id, next.url, () => {}));
+            if (!next || document.querySelector(`link[data-preload-track="${next.id}"]`)) return;
+            cnfteIdle(() => {
+                const link = document.createElement('link');
+                link.rel = 'preload';
+                link.as = 'audio';
+                link.href = next.url;
+                link.dataset.preloadTrack = next.id;
+                document.head.appendChild(link);
+            });
         }
 
         function loadTrack(i, autoplay) {
@@ -1638,46 +1510,21 @@
             localStorage.setItem(PLAYER_LS.index, String(i));
             renderPlayerWidget();
 
-            if (audioEl.dataset.srcId === track.id) {
-                // 已经是当前这首（比如恢复播放状态时重复调用），不用重新走一遍加载
-                if (autoplay) audioEl.play().catch(() => {});
-                return;
+            if (audioEl.dataset.srcId !== track.id) {
+                // 直接把真实地址交给 <audio>：该走浏览器原生的流式加载还是走上面
+                // 注册的加速 Service Worker，完全由 SW 是否接管这次请求决定，
+                // 这里不需要也不应该关心——播放器只管"设置来源、开始播放"。
+                audioEl.src = track.url;
+                audioEl.dataset.srcId = track.id;
             }
-
-            // loadToken 用来丢弃"过期"的加载结果：分片下载期间如果用户又切了别的歌，
-            // 旧请求即使后下载完也不会再被塞进 audioEl.src，避免抢播/串轨。
-            const myToken = ++cnftePlayer.loadToken;
-            audioEl.dataset.srcId = track.id;
-            audioEl.removeAttribute('src');
-            setPlayerLoading(true, 0);
-
-            AudioAccel.load(track.id, track.url, pct => {
-                if (cnftePlayer.loadToken === myToken) setPlayerLoading(true, pct);
-            }).then(playableUrl => {
-                if (cnftePlayer.loadToken !== myToken) return; // 已经切到别的歌了，这次结果作废
-                setPlayerLoading(false);
-                if (!playableUrl) return; // 被取消
-                audioEl.src = playableUrl;
-                // autoplay 是这次 loadTrack 调用时就要求播放；pendingPlay 是下载还没
-                // 完成时用户又手动点了播放按钮——两种情况都应该在这里真正开始播放。
-                if (autoplay || cnftePlayer.pendingPlay) audioEl.play().catch(() => {});
-                cnftePlayer.pendingPlay = false;
-                AudioAccel.evict(track.id);
-                prefetchAdjacent(i);
-            });
+            if (autoplay) audioEl.play().catch(() => {});
+            prefetchAdjacent(i);
         }
 
         function togglePlay() {
             const audioEl = cnftePlayer.audioEl;
             if (!audioEl || !cnftePlayer.tracks.length) return;
             if (!audioEl.dataset.srcId) { loadTrack(cnftePlayer.index >= 0 ? cnftePlayer.index : 0, true); return; }
-            if (!audioEl.src) {
-                // 目标歌曲已经指定但分片还在下载中：记下"用户想播放"，等下载完
-                // 成后自动接着播，而不是让这次点击白点
-                cnftePlayer.pendingPlay = true;
-                setPlayerLoading(true, 0);
-                return;
-            }
             if (audioEl.paused) audioEl.play().catch(() => {}); else audioEl.pause();
         }
 
@@ -1846,6 +1693,13 @@
                     clearPlainLyricTimer();
                 });
                 audioEl.addEventListener('ended', () => playNext(false));
+                // 缓冲状态直接绑原生事件：waiting = 播放引擎等着要数据但还没到
+                // （刚切歌 / 弱网追不上播放速度），playing/canplay = 数据够了，
+                // 不用自己猜"下载进度"，浏览器自己知道播放头前面缓冲够不够。
+                const playBtn = () => document.getElementById('player-play');
+                audioEl.addEventListener('waiting', () => { const b = playBtn(); if (b) b.classList.add('loading'); });
+                audioEl.addEventListener('playing', () => { const b = playBtn(); if (b) b.classList.remove('loading'); });
+                audioEl.addEventListener('canplay', () => { const b = playBtn(); if (b) b.classList.remove('loading'); });
             }
             renderPlayerWidget();
         }
@@ -1867,6 +1721,7 @@
         safeRun(bindBackToTop);
         safeRun(initTagsHubView);
         safeRun(initArchiveFilters);
+        safeRun(registerAudioAccelSW);
         safeRun(bindMusicPlayer);
         safeRun(bindScrollReveal);
         cnfteIdle(() => { safeRun(initParticles); safeRun(initHeroTyping); }, { timeout: 800 });

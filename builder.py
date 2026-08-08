@@ -287,6 +287,15 @@ def build():
             print(f"⚠️  音频库导出失败，播放器将不显示任何歌曲: {e}")
             audio_tracks = []
 
+        # ── 音频并行分片加速 Service Worker：注册域限定在 /audio/，不会跟
+        #    上面的 Monetag sw.js（scope 通常是站点根 /）互相冲突 ──
+        accel_sw_src = os.path.join(THEME_DIR, 'audio-accel-sw.js')
+        if os.path.exists(accel_sw_src):
+            shutil.copy2(accel_sw_src, os.path.join(OUTPUT_DIR, 'audio-accel-sw.js'))
+            print("🚀 audio-accel-sw.js 已复制到输出目录（音频并行分片加速）")
+        else:
+            print("⚠️  未找到 themes/default/audio-accel-sw.js，播放器将退回单流原生加载")
+
     env = Environment(
         loader=FileSystemLoader(THEME_DIR),
         autoescape=select_autoescape(disabled_extensions=['html']),
