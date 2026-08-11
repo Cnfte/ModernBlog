@@ -34,6 +34,58 @@ const CHUNK_COUNT = 4;              // 已知文件大小后，剩余部分的�
 const MIN_SPLIT_SIZE = 512 * 1024;  // 请求范围小于这个大小时不值得拆分并行
 const FIRST_CHUNK_SIZE = 256 * 1024; // 首块大小：足够快到达（尽量缩短点击到出声的时间），
                                       // 又足够撑起 <audio> 先播起来、不至于立刻断流等下一块
+const PARALLEL_START_DELAY_MS = 400; // "剩余部分"的并行请求延迟这么久再发。
+                                      // 之前是首块请求一发出去，剩余部分的并行请求就立刻跟着一起发——
+                                      // 在真正的带宽瓶颈场景（比如跨境线路整体被限速到几 KB/s，
+                                      // 不是单连接限速而是这条线路总吞吐就这么多）下，这些并行连接
+                                      // 会跟首块抢同一根本就不宽裕的管道，首块反而更慢到，"点击到
+                                      // 出声"的等待时间比不做加速还长。留这么点延迟，让首块独享带宽
+                                      // 尽快落地、<audio> 尽快开始播放，剩余部分再并行补上，两边不打架。
+const STAGGER_STEP_MS = 350;         // 关键修复：上面这条"别跟首块抢带宽"的道理，同样适用于
+                                      // "剩余部分"内部——原来剩余的几个分片是同一时刻一起发出去的，
+                                      // 但其中只有紧接着首块之后的那一片是播放马上要用到的，后面几片
+                                      // 还早。在总吞吐真的被卡死（而不是单连接限速）的跨境弱网下，
+                                      // 这几片会平分本就不多的带宽，导致"马上要用"的那片反而只分到
+                                      // 1/3 左右的速度，实际观感就是明明开了好几条并行连接，却要等
+                                      // 下载完 1MB 多、老半天才能听到声音——比不加速还慢。这里让"剩余
+                                      // 部分"里的每一片再依次错开一段时间才发出（越晚需要的片延迟越
+                                      // 久），把带宽优先让给真正快要播到的那一片，后面的片再逐步跟上，
+                                      // 而不是一次性挤爆管道。
+const MAX_CONCURRENT_FETCHES = 4;    // 关键修复二：SW 自己开的并行分片请求，不能只在"单首歌内部"
+                                      // 控制数量——当前播放的歌最多同时开 CHUNK_COUNT 条，如果这时候
+                                      // prefetchAdjacent() 又在后台预取下一首（同样会被这个 SW 拦截、
+                                      // 同样走并行分片），两边一叠加很容易超过浏览器对同一个域名的
+                                      // 并发连接数上限（HTTP/1.1 常见 6 条/域名，多层 CDN 转发时这个
+                                      // 上限可能更容易被触发）。超限之后，浏览器会把多出来的请求晾在
+                                      // 内部队列里，表现为某个分片请求"排队"十几秒都发不出去——跟没加速
+                                      // 甚至更差。这里用一个全局并发闸门，把本 SW 发起的所有分片请求
+                                      // （不管来自哪首歌、当前播放的还是预取的）总数卡住，宁可局部串行
+                                      // 一点，也不去挤爆连接数上限。
+let _activeFetches = 0;
+const _fetchQueue = [];
+
+// 所有 SW 自己发起的分片子请求都要走这里，而不是直接调 fetch()——用一个简单的
+// 令牌队列把全局并发数控制在 MAX_CONCURRENT_FETCHES 以内，排队等到有空位再真正
+// 发出网络请求；跟直接用 fetch() 相比只是"何时真正发出"不同，用法和返回值一样。
+function gatedFetch(url, opts) {
+    return new Promise((resolve, reject) => {
+        const run = () => {
+            _activeFetches++;
+            fetch(url, opts).then(
+                res => { _activeFetches--; _drainFetchQueue(); resolve(res); },
+                err => { _activeFetches--; _drainFetchQueue(); reject(err); }
+            );
+        };
+        if (_activeFetches < MAX_CONCURRENT_FETCHES) run();
+        else _fetchQueue.push(run);
+    });
+}
+
+function _drainFetchQueue() {
+    if (_fetchQueue.length && _activeFetches < MAX_CONCURRENT_FETCHES) {
+        _fetchQueue.shift()();
+    }
+}
 const sizeCache = new Map();        // url -> { acceptRanges, size }（Service Worker 存活期间有效，重启后重新探测即可）
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -54,6 +106,18 @@ function splitRange(start, end, n) {
         parts.push([s, Math.min(s + chunk - 1, end)]);
     }
     return parts.length ? parts : [[start, end]];
+}
+
+// 跟 fetch() 用法一样，只是延迟 delayMs 之后才真正发出请求——用来给首块请求
+// 留一个独享带宽的窗口，见 PARALLEL_START_DELAY_MS 的注释。延迟结束后走
+// gatedFetch()，同样受全局并发闸门控制。
+function delayedFetch(url, opts, delayMs) {
+    if (!delayMs) return gatedFetch(url, opts);
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            gatedFetch(url, opts).then(resolve, reject);
+        }, delayMs);
+    });
 }
 
 // 把一组"响应 Promise"（可以是已经在飞行中的、也可以是尚未发出的 fetch）严格
@@ -90,11 +154,18 @@ function streamParts(fetchPromises) {
 }
 
 // 已经知道文件大小/支持 Range（sizeCache 命中）时使用：请求的范围直接拆成
-// CHUNK_COUNT 份全部并行发出。
+// CHUNK_COUNT 份，第一份立即发出（谁在等这段数据谁优先），其余几份依次错开
+// （第 idx 份延迟 PARALLEL_START_DELAY_MS + (idx-1)*STAGGER_STEP_MS 再发，
+// 而不是全部延迟同一个时间点一起发）——原因见 STAGGER_STEP_MS 的注释：
+// 严格按顺序消费的分片里，只有紧跟在当前分片后面那个是马上要用的，其余的
+// 还早，不该跟它抢带宽，让它们分批依次加入而不是同时挤爆管道。
 function parallelStream(url, start, end, signal) {
     const subs = splitRange(start, end, CHUNK_COUNT);
-    const fetches = subs.map(([s, e]) =>
-        fetch(url, { headers: { Range: `bytes=${s}-${e}` }, signal }));
+    const fetches = subs.map(([s, e], idx) =>
+        idx === 0
+            ? gatedFetch(url, { headers: { Range: `bytes=${s}-${e}` }, signal })
+            : delayedFetch(url, { headers: { Range: `bytes=${s}-${e}` }, signal },
+                PARALLEL_START_DELAY_MS + (idx - 1) * STAGGER_STEP_MS));
     return streamParts(fetches);
 }
 
@@ -208,16 +279,26 @@ async function serveFirstRequest(request, url, rangeHeader, contentType) {
 
     // 首块请求已经在飞了（数据说不定已经开始到达），剩余部分（如果还有）现在才
     // 需要决定要不要拆成多条并行——首块负责"尽快出声"，剩余部分负责"整体提速"。
+    //
+    // 剩余部分内部同样要依次错开发出（第 idx 份延迟
+    // PARALLEL_START_DELAY_MS + idx*STAGGER_STEP_MS），不能全部挤在同一时刻——
+    // streamParts() 是严格按数组顺序把各片依次交给 <audio> 的，紧跟首块之后的
+    // 那一片是马上要播到的，后面几片还早。如果像之前那样所有剩余分片同一时刻
+    // 一起发出，在总吞吐被卡死的跨境弱网下它们会平分本就不宽裕的带宽，反而拖慢
+    // 了"马上要播到的那一片"——表现出来就是明明在"加速"，实际上要下载 1MB 多
+    // 才等到能播的数据，比不加速的原生单流还慢。错开发出能保证带宽优先让给
+    // 真正快要播到的那一片，后面的片再逐步跟上补齐。
     const parts = [Promise.resolve(firstRes)];
     if (actualFirstEnd < neededEnd) {
         const remainStart = actualFirstEnd + 1;
         const remainSize = neededEnd - remainStart + 1;
         if (remainSize < MIN_SPLIT_SIZE) {
-            parts.push(fetch(url, { headers: { Range: `bytes=${remainStart}-${neededEnd}` }, signal: request.signal }));
+            parts.push(delayedFetch(url, { headers: { Range: `bytes=${remainStart}-${neededEnd}` }, signal: request.signal }, PARALLEL_START_DELAY_MS));
         } else {
             const subs = splitRange(remainStart, neededEnd, Math.max(1, CHUNK_COUNT - 1));
-            subs.forEach(([s, e]) => {
-                parts.push(fetch(url, { headers: { Range: `bytes=${s}-${e}` }, signal: request.signal }));
+            subs.forEach(([s, e], idx) => {
+                parts.push(delayedFetch(url, { headers: { Range: `bytes=${s}-${e}` }, signal: request.signal },
+                    PARALLEL_START_DELAY_MS + idx * STAGGER_STEP_MS));
             });
         }
     }
@@ -235,5 +316,13 @@ async function serveFirstRequest(request, url, rangeHeader, contentType) {
 self.addEventListener('fetch', event => {
     const req = event.request;
     if (req.method !== 'GET' || !isAudioRequest(req.url)) return; // 非音频请求完全不拦截，走浏览器默认行为
+
+    // <link rel="preload" as="audio"> 预取下一首歌的请求（见 prefetchAdjacent()）
+    // 会带上 Sec-Purpose/Purpose: prefetch 头。预取是"提前存进磁盘缓存"，不追求
+    // 立刻出声，没必要跟当前正在播放的曲目抢并发连接名额——直接放行走浏览器
+    // 原生单流加载即可，省下的连接数全部留给真正在播的那首歌。
+    const purpose = req.headers.get('Sec-Purpose') || req.headers.get('Purpose') || '';
+    if (/prefetch/i.test(purpose)) return;
+
     event.respondWith(handleAudioRequest(req).catch(() => fetch(req)));
 });
