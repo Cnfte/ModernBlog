@@ -1046,10 +1046,14 @@
         // 是否启用由后台配置决定（window.__cnfteConfig.heroTyping），不再放到前台
         // 设置面板给访客自行切换——这是站长的网站设计选择，不是访客的个人偏好。
         //
-        // 逐字修改 textContent 本身会触发下面的 MutationObserver，如果不做隔离，
-        // 40ms 防抖之后会重新调用本函数、把刚启动没多久的计时器 clear 掉，导致打字
-        // 动画卡死在空字符串上再也恢复不了。这里的做法：真正开始逐字输出前先
-        // disconnect 观察者，全部打完/被禁用后再重新 observe。
+        // 逐字修改 textContent 本身会触发下面的 MutationObserver。以前的做法是打字
+        // 期间整个 disconnect 观察者、打完再重新 observe——但如果访客在打字还没结束
+        // 时就点了文章链接触发 SPA navigate()，#main-grid 整体替换这次 DOM 变化会
+        // 发生在“观察者已断开”的窗口期内，之后再也不会被补上：新文章页里的侧边栏
+        // 永远不会被 bindScrollReveal() 揭示（一直停在初始的隐藏态），播放器也不会被
+        // bindMusicPlayer() 重新绑定，歌词自然不会渲染。现在改成观察者始终保持连接，
+        // 只在回调里过滤掉「只发生在 .hero-bio 内部」的打字自身变化，这样即使正在打字，
+        // 发生在 .hero-bio 之外的 SPA 换页变化也不会被漏掉。
         //
         // 光标不用 CSS border-right（那样只会贴在容器最右侧，文字没占满整行时
         // 光标就会离文字很远，跟文字长度对不上），改成动态插入一个跟着文字一起走的
@@ -1064,7 +1068,6 @@
                 el._cnfteTypeTimer = null;
                 el.classList.remove('cnfte-typing-active');
                 if (el.dataset.cnfteFull) el.textContent = el.dataset.cnfteFull;
-                if (cnfteObserver) cnfteObserver.observe(document.body, { childList: true, subtree: true });
                 return;
             }
 
@@ -1078,7 +1081,6 @@
             clearTimeout(el._cnfteTypeTimer);
             el._cnfteTyped = full;
             el.classList.add('cnfte-typing-active');
-            if (cnfteObserver) cnfteObserver.disconnect();
 
             // 用「文字文本节点 + 光标 span」两个子节点搭建：光标天然贴在最后一个已
             // 打出的字符后面（而不是贴在容器最右侧），文字换行时光标也会跟着走。
@@ -1104,7 +1106,6 @@
                     // 打完最后一个字后额外顿一下，再让光标稳定下来（不是打完立刻定住）
                     el._cnfteTypeTimer = setTimeout(() => {
                         el._cnfteTypeTimer = null;
-                        if (cnfteObserver) cnfteObserver.observe(document.body, { childList: true, subtree: true });
                     }, 520);
                     return;
                 }
@@ -1699,6 +1700,26 @@
                 });
             }
 
+            // 歌词区（#player-lyric-list）跟标题/进度条一样，每次侧边栏卡片被
+            // 重新渲染时都要跟着重画——不能只在 loadTrack()/loadLyricsFor() 里画。
+            // 原因：SPA 换页会把 #site-aside 整体替换成全新 DOM，新的
+            // #player-lyric-list 是空的，只有真正切歌时才会触发 loadLyricsFor()，
+            // 而"歌还是同一首、只是换了页面"这种情况永远不会再切歌——歌词就
+            // 一直空在那里。这里改成每次重画都用已经缓存好的
+            // lyricLines/plainLines 状态把列表内容补回来，并强制把当前应该高亮
+            // 的那一行滚回视图中间（不能依赖 syncLyricToTime 里"索引变化了才滚"
+            // 的判断——换页前后索引通常没变，那个判断会让新列表永远停在初始态，
+            // 表现为歌词高亮/滚动进度跟着丢失）。
+            renderLyricList();
+            if (cnftePlayer.lyricMode === 'synced') {
+                scrollLyricToIndex(cnftePlayer.lyricIdx);
+            } else if (cnftePlayer.lyricMode === 'plain') {
+                scrollLyricToIndex(cnftePlayer.plainIdx);
+                if (cnftePlayer.audioEl && !cnftePlayer.audioEl.paused && !cnftePlayer.plainTimer) {
+                    startPlainLyricCycle();
+                }
+            }
+
             updateProgressUI();
             bindProgressDrag();
 
@@ -1796,8 +1817,21 @@
         cnfteIdle(() => { safeRun(initParticles); safeRun(initHeroTyping); }, { timeout: 800 });
 
         // ── SPA 换页后重新应用（不需要改动原有 navigate()/reinitPage()）──
+        // 观察者始终保持连接（不再因为 hero 打字机而 disconnect）：回调里先过滤掉
+        // 「这一批 mutation 全部发生在 .hero-bio 内部」的情况（逐字打字本身产生的
+        // 文本节点增删），避免打字期间被反复重新初始化打断动画；但只要这批
+        // mutation 里有任意一条发生在 .hero-bio 之外——例如 SPA navigate() 整体
+        // 替换 #main-grid（切换到文章页）——就正常处理，不会因为正在打字而被跳过。
+        // 这就修复了之前「打字还没结束就点进文章 → 观察者处于断开窗口 → 新页面的
+        // 侧边栏/播放器再也不会被重新揭示 / 重新绑定」的问题。
         let debounceTimer;
-        cnfteObserver = new MutationObserver(() => {
+        cnfteObserver = new MutationObserver((mutations) => {
+            const onlyHeroTyping = mutations.length > 0 && mutations.every(m => {
+                const t = m.target;
+                return t && t.nodeType === 1 && t.closest && t.closest('.hero-bio');
+            });
+            if (onlyHeroTyping) return;
+
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 safeRun(applyPersistedUI);
