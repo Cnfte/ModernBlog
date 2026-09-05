@@ -124,6 +124,7 @@
             --ease-std: cubic-bezier(0.4, 0, 0.2, 1);
             --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
             --ease-press: cubic-bezier(0.34, 1.2, 0.64, 1);
+            --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
             --r-sm: 16px;
             --r-md: 24px;
             --r-lg: 32px;
@@ -344,7 +345,7 @@
         .nav-menu-backdrop {
             position: absolute;
             inset: 0;
-            background: rgba(4, 4, 10, .6);
+            background: rgba(4, 4, 10, .4);
             backdrop-filter: blur(6px);
             -webkit-backdrop-filter: blur(6px);
             opacity: 0;
@@ -364,7 +365,13 @@
             height: 100%;
             height: 100dvh;
             width: min(300px, 84vw);
-            background: linear-gradient(165deg, rgba(22, 20, 32, .97), rgba(8, 7, 13, .98));
+            /* 原来是接近不透明的纯色渐变，完全没有 backdrop-filter，看起来就是一整块黑。
+               背后的 .nav-menu-backdrop 已经压暗一层了，这里不能再叠差不多深的暗色
+               （两层半透明黑相乘只会更黑），所以面板自己要更淡，并用 brightness
+               把模糊后的背景"提亮"出来，才会有实际的透光感。 */
+            background: linear-gradient(165deg, rgba(28, 24, 40, .32), rgba(10, 9, 16, .38));
+            backdrop-filter: blur(30px) saturate(200%) brightness(1.35);
+            -webkit-backdrop-filter: blur(30px) saturate(200%) brightness(1.35);
             border-right: 1px solid rgba(255, 255, 255, .09);
             box-shadow: 24px 0 60px rgba(0, 0, 0, .5);
             padding: 20px 20px 28px;
@@ -1368,7 +1375,7 @@
         }
 
         .foot-text a {
-            color: var(--accent3);
+            color: var(--accent2);
             text-decoration: underline;
             text-underline-offset: 3px;
             transition: color .15s;
@@ -1398,7 +1405,7 @@
             border-radius: 50%;
             border: 1px solid var(--border-accent, rgba(255, 255, 255, .12));
             background: rgba(255, 255, 255, .06);
-            color: var(--accent3, rgba(255, 255, 255, .5));
+            color: var(--accent2, rgba(255, 255, 255, .5));
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1669,8 +1676,9 @@
         .notice-backdrop {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, .7);
-            backdrop-filter: blur(6px);
+            background: rgba(6, 6, 15, .5);
+            backdrop-filter: blur(8px) saturate(120%);
+            -webkit-backdrop-filter: blur(8px) saturate(120%);
         }
 
         .notice-backdrop-label {
@@ -1682,15 +1690,50 @@
         .notice-box {
             position: relative;
             z-index: 1;
-            background: var(--glass-heavy);
+            /* .notice-backdrop 已经把背后整页压暗+模糊了一层，这里如果再叠一层
+               差不多深浅的暗色，两层半透明黑相乘只会更黑（0.5 叠 0.68 ≈ 84% 不透明），
+               跟"看不见透明"是一回事。所以框自己要明显更淡，并且用 brightness
+               把已经模糊过的背景"提亮"出来，才会有真的透光感。 */
+            background: rgba(20, 18, 30, .3);
+            backdrop-filter: blur(30px) saturate(200%) brightness(1.35);
+            -webkit-backdrop-filter: blur(30px) saturate(200%) brightness(1.35);
             border: 1px solid var(--border-accent);
             border-radius: var(--r-lg);
             padding: 40px;
             width: min(520px, 90vw);
             max-height: 80vh;
             overflow-y: auto;
-            box-shadow: 0 24px 72px rgba(0, 0, 0, .7);
-            animation: cardIn .35s var(--ease) both;
+            box-shadow: 0 24px 72px rgba(0, 0, 0, .7), 0 0 0 1px rgba(255, 153, 204, .1);
+            /* 统一的"底部滑出"弹层动效：跟设置面板一致，每次开合都从下方
+               滑入/滑回，而不是用一次性 keyframe 动画（只在首次挂载播一次，
+               之后开合就只剩淡入淡出，看起来像"突然出现"）。 */
+            opacity: 0;
+            transform: translateY(36px);
+            transition: transform .45s var(--ease-sheet), opacity .3s var(--ease-out);
+        }
+
+        #notice-toggle:checked~.notice-modal-wrap .notice-box {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 640px) {
+            .notice-modal-wrap {
+                align-items: flex-end;
+            }
+
+            .notice-box {
+                width: 100%;
+                max-height: 82vh;
+                border-radius: var(--r-lg) var(--r-lg) 0 0;
+                border-bottom: none;
+                padding: 28px 22px calc(22px + env(safe-area-inset-bottom, 0px));
+                transform: translateY(100%);
+            }
+
+            #notice-toggle:checked~.notice-modal-wrap .notice-box {
+                transform: translateY(0);
+            }
         }
 
         .notice-box-header {

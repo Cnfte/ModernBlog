@@ -333,7 +333,9 @@
         width: 46px;
         height: 46px;
         border-radius: 50%;
-        background: var(--glass-heavy);
+        background: rgba(20, 18, 30, .35);
+        backdrop-filter: blur(14px) saturate(200%) brightness(1.3);
+        -webkit-backdrop-filter: blur(14px) saturate(200%) brightness(1.3);
         border: 1px solid var(--border);
         color: var(--accent);
         display: flex;
@@ -372,7 +374,9 @@
         width: 46px;
         height: 46px;
         border-radius: 50%;
-        background: var(--glass-heavy);
+        background: rgba(20, 18, 30, .35);
+        backdrop-filter: blur(14px) saturate(200%) brightness(1.3);
+        -webkit-backdrop-filter: blur(14px) saturate(200%) brightness(1.3);
         border: 1px solid var(--border);
         color: var(--accent);
         font-size: 1.05rem;
@@ -394,6 +398,27 @@
         transition: transform .15s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
     }
 
+    /* 设置面板的背景遮罩：之前完全没有，点开面板时背景毫无变化、
+       跟公告弹窗的体验不一致。补上同款的暗化+模糊。 */
+    #cnfte-settings-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9000;
+        background: rgba(6, 6, 15, .38);
+        backdrop-filter: blur(6px) saturate(120%);
+        -webkit-backdrop-filter: blur(6px) saturate(120%);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity .3s var(--ease-out, ease), visibility .3s;
+    }
+
+    #cnfte-settings-backdrop.open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: all;
+    }
+
     #cnfte-settings-panel {
         position: fixed;
         left: 20px;
@@ -402,27 +427,48 @@
         width: 272px;
         max-height: 72vh;
         overflow-y: auto;
-        background: var(--glass-heavy);
+        /* 跟公告框同一个问题：背后已经有 #cnfte-settings-backdrop 压暗一层，
+           面板自己不能再叠差不多深的暗色，否则相乘只会更黑。这里明显调淡，
+           并用 brightness 把模糊后的背景"提亮"出来。 */
+        background: rgba(20, 18, 30, .3);
+        backdrop-filter: blur(26px) saturate(200%) brightness(1.35);
+        -webkit-backdrop-filter: blur(26px) saturate(200%) brightness(1.35);
         border: 1px solid var(--border);
         border-radius: var(--r-md);
         padding: 18px 18px 14px;
         box-shadow: var(--shadow);
         opacity: 0;
         visibility: hidden;
-        /* 默认值兜底（JS 未跑起来时），实际弹出点由 applyMorphOrigin 写入
-           --morph-* 变量决定，从设置按钮那一点放大+滑动出来 */
-        --morph-x: 0px;
-        --morph-y: 14px;
-        --morph-sx: .95;
-        --morph-sy: .95;
-        transform: translate(var(--morph-x), var(--morph-y)) scale(var(--morph-sx), var(--morph-sy));
-        transition: opacity .35s var(--ease-out), transform .45s var(--ease-spring), visibility .35s;
+        /* 统一的"从下往上滑出"动效：跟公告弹窗一致，不再是从设置按钮那一点
+           放大炸开——那种效果在面板较大时看起来很生硬、也是"傻快"感的来源。 */
+        transform: translateY(18px);
+        transition: opacity .3s var(--ease-out, ease), transform .45s var(--ease-sheet, cubic-bezier(0.32, 0.72, 0, 1)), visibility .35s;
     }
 
     #cnfte-settings-panel.open {
         opacity: 1;
         visibility: visible;
-        transform: translate(0, 0) scale(1, 1);
+        transform: translateY(0);
+    }
+
+    /* 移动端做成真正贴底部的 sheet：满宽、只有顶部圆角、从视口下方滑入，
+       不再是缩放在左下角一小块面板里，避免内容被裁切/溢出容器。 */
+    @media (max-width: 640px) {
+        #cnfte-settings-panel {
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100%;
+            max-height: 78vh;
+            border-radius: var(--r-lg) var(--r-lg) 0 0;
+            border-bottom: none;
+            padding: 20px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+            transform: translateY(100%);
+        }
+
+        #cnfte-settings-panel.open {
+            transform: translateY(0);
+        }
     }
 
     #cnfte-settings-panel h3 {
@@ -763,6 +809,22 @@
         /* 给滚动条留一点内缩空间，不贴着卡片圆角内壁走 */
         padding-right: 4px;
         scrollbar-width: thin;
+        scrollbar-color: rgba(255, 153, 204, .3) transparent;
+    }
+
+    /* 之前没写 ::-webkit-scrollbar，Chrome/Safari/移动端浏览器会退回系统
+       默认的浅色宽滚动条，在深色毛玻璃背景上就是一根很突兀的"大白条"。 */
+    .player-playlist.open::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .player-playlist.open::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .player-playlist.open::-webkit-scrollbar-thumb {
+        background: rgba(255, 153, 204, .3);
+        border-radius: 3px;
     }
 
     .player-playlist-item {
@@ -845,6 +907,7 @@
     <i class="fas fa-gear{{ ' cnfte-spin-slow' if config.enable_icon_spin | default(true) else '' }}" aria-hidden="true"></i>
 </button>
 
+<div id="cnfte-settings-backdrop"></div>
 <div id="cnfte-settings-panel" role="dialog" aria-label="显示设置">
     <h3><i class="fas fa-sliders" aria-hidden="true"></i> 显示设置</h3>
 
@@ -946,7 +1009,9 @@
             document.querySelectorAll('.notice-open-label').forEach(label => {
                 if (label._noticeBound) return;
                 label._noticeBound = true;
-                label.addEventListener('click', () => applyMorphOrigin(label, box));
+                // 公告框现在统一走底部滑出动效（见 CSS 的 .notice-box /
+                // #notice-toggle:checked~... 规则），不再需要按钮起点的
+                // morph 计算，这里不用再挂监听了。
             });
         }
         window.bindNoticeModal = bindNoticeModal;
@@ -1027,20 +1092,25 @@
         function bindSettingsPanel() {
             const btn = document.getElementById('cnfte-settings-btn');
             const panel = document.getElementById('cnfte-settings-panel');
+            const backdrop = document.getElementById('cnfte-settings-backdrop');
             if (!btn || !panel || btn._bound) return;
             btn._bound = true;
 
-            btn.addEventListener('click', () => {
-                const open = !panel.classList.contains('open');
-                if (open) applyMorphOrigin(btn, panel);
+            const setOpen = (open) => {
                 panel.classList.toggle('open', open);
+                if (backdrop) backdrop.classList.toggle('open', open);
                 btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            });
+            };
+
+            btn.addEventListener('click', () => setOpen(!panel.classList.contains('open')));
+            if (backdrop) backdrop.addEventListener('click', () => setOpen(false));
             document.addEventListener('click', e => {
                 if (!panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-                    panel.classList.remove('open');
-                    btn.setAttribute('aria-expanded', 'false');
+                    setOpen(false);
                 }
+            });
+            document.addEventListener('keydown', e => {
+                if (e.key === 'Escape') setOpen(false);
             });
 
             panel.querySelectorAll('[data-cs-group="sidebar"]').forEach(group => {
