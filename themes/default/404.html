@@ -143,8 +143,15 @@
 
         .btn.primary {
             background: var(--grad);
+            background-size: 220% 220%;
+            background-position: 0% 50%;
             border: none;
             color: #0a0a12;
+            transition: transform .4s var(--ease-spring), border-color .2s, background-position .6s var(--ease-out), box-shadow .3s var(--ease-out);
+        }
+
+        .btn.primary:hover {
+            background-position: 100% 50%;
         }
 
         @media (prefers-reduced-motion: reduce) {

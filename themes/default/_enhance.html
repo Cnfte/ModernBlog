@@ -117,9 +117,17 @@
 
     .cnfte-chip.active {
         background: var(--grad);
+        background-size: 220% 220%;
+        background-position: 0% 50%;
         color: #1a1620;
         border-color: transparent;
         font-weight: 700;
+        box-shadow: 0 6px 18px -4px color-mix(in srgb, var(--accent) 55%, transparent);
+        transition: border-color .2s, color .2s, background-position .8s var(--ease-out), box-shadow .3s, transform .4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+    }
+
+    .cnfte-chip.active:hover {
+        background-position: 100% 50%;
     }
 
     .cnfte-chip .chip-count {
@@ -134,6 +142,20 @@
         gap: 6px;
     }
 
+    @keyframes cnfteSelectPop {
+        0% {
+            transform: scale(1);
+        }
+
+        45% {
+            transform: scale(1.035);
+        }
+
+        100% {
+            transform: scale(1);
+        }
+    }
+
     .cnfte-archive-row {
         display: flex;
         align-items: center;
@@ -141,11 +163,12 @@
         padding: 7px 10px;
         border-radius: 10px;
         border: 1px solid var(--border);
+        border-left: 2px solid transparent;
         background: var(--glass);
         cursor: pointer;
         font-size: .78rem;
         color: rgba(255, 255, 255, .75);
-        transition: border-color .2s, transform .4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+        transition: border-color .25s, background .25s, color .2s, transform .4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
     }
 
     .cnfte-archive-row:hover {
@@ -158,9 +181,14 @@
         transition: transform .12s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
     }
 
+    /* 选中态之前只是纯色切换，没有任何进场感——现在加一层左侧强调条 +
+       轻微弹一下的动画，跟其余组件的"选中反馈"统一到同一套语言 */
     .cnfte-archive-row.active {
-        border-color: var(--accent);
+        border-color: var(--border-accent);
+        border-left-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 10%, var(--glass));
         color: var(--accent);
+        animation: cnfteSelectPop .35s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
     }
 
     .cnfte-archive-row .arc-count {
@@ -213,11 +241,17 @@
         transition: transform .15s var(--ease-press, cubic-bezier(0.34, 1.2, 0.64, 1));
     }
 
+    /* 之前选中当前页只是瞬间换色，跟未选中的按钮相比没有任何"落定"的动效，
+       显得很敷衍——现在给渐变加流动感，并配一个短促的进场弹一下 */
     .cnfte-page-btn.active {
         background: var(--grad);
+        background-size: 220% 220%;
+        background-position: 0% 50%;
         color: #1a1620;
         font-weight: 700;
         border-color: transparent;
+        box-shadow: 0 6px 18px -4px color-mix(in srgb, var(--accent) 55%, transparent);
+        animation: cnfteSelectPop .4s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
     }
 
     .cnfte-page-btn:disabled {
@@ -1127,16 +1161,21 @@
             document.querySelectorAll('[data-cnfte-reveal]:not([data-reveal-bound])').forEach(el => {
                 el.dataset.revealBound = '1';
                 const repeat = el.dataset.cnfteRevealRepeat === '1';
+                // 之前只注册了单个 threshold(0.15)：ratio 从 1 掉到 0.15 以下时确实会
+                // 触发一次回调，但那一刻 intersectionRatio 仍然 > 0，isIntersecting 依旧
+                // 是 true，于是"离场"分支永远不会走到——这就是"淡入正常、淡出没反应"的
+                // 根因。这里改成显式比较 intersectionRatio，并把 0 也纳入注册的
+                // threshold，保证元素完全离开视口那一刻一定还会再收到一次回调。
                 const io = new IntersectionObserver((entries) => {
                     entries.forEach(entry => {
-                        if (entry.isIntersecting) {
+                        if (entry.intersectionRatio >= 0.15) {
                             el.classList.add('cnfte-revealed');
                             if (!repeat) io.unobserve(el);
                         } else if (repeat) {
                             el.classList.remove('cnfte-revealed');
                         }
                     });
-                }, { threshold: 0.15 });
+                }, { threshold: [0, 0.15, 0.3] });
                 io.observe(el);
             });
         }
@@ -1150,6 +1189,79 @@
                 btn.classList.toggle('show', (window.scrollY || document.documentElement.scrollTop) > 420);
             }, { passive: true });
             btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+        }
+
+        // ── 顶栏磨砂状态：刚到顶部时更透一点，滚动一段距离后加深 + 加投影，
+        //    拉开跟正文的层次（nav 是持续存在的节点，SPA 换页不会重建它，
+        //    所以跟 bindBackToTop 一样用 _bound 防重复绑定即可）──
+        function bindNavScrollState() {
+            const nav = document.querySelector('nav');
+            if (!nav || nav._scrollStateBound) return;
+            nav._scrollStateBound = true;
+            const apply = () => {
+                nav.classList.toggle('cnfte-nav-scrolled', (window.scrollY || document.documentElement.scrollTop) > 8);
+            };
+            window.addEventListener('scroll', apply, { passive: true });
+            apply();
+        }
+
+        // ── 滚动阻尼感 ──
+        // 只接管桌面端的滚轮/触控板滚动：把每次 wheel 的位移量累加成一个目标
+        // scrollTop，再用 requestAnimationFrame 把当前位置以固定比例逼近目标，
+        // 从而产生"跟手但带一点惯性收尾"的高级感；不接管触屏（移动端系统自带的
+        // 惯性滚动已经很好，没必要重做一遍），也尊重"减少动态效果"系统设置。
+        // 任何不是由这段脚本自己触发的 scroll 事件（锚点跳转、SPA 换页回顶部、
+        // 键盘 PageUp/PageDown、拖动滚动条……）都会被当作"外部滚动"来同步目标值，
+        // 避免和原生行为打架。
+        function initDampedScroll() {
+            if (window.__cnfteDampedScrollInited) return;
+            window.__cnfteDampedScrollInited = true;
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            if (window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches) return;
+
+            const DAMPING = 0.14; // 越小越"粘"、越大越跟手，0.1~0.2 之间比较自然
+            let target = window.scrollY || document.documentElement.scrollTop;
+            let current = target;
+            let raf = null;
+            let selfTriggered = false;
+
+            function maxScroll() {
+                return Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            }
+
+            function tick() {
+                current += (target - current) * DAMPING;
+                if (Math.abs(target - current) < 0.4) current = target;
+                selfTriggered = true;
+                window.scrollTo(0, current);
+                if (current !== target) {
+                    raf = requestAnimationFrame(tick);
+                } else {
+                    raf = null;
+                }
+            }
+
+            window.addEventListener('wheel', (e) => {
+                // 弹出层/代码块/下拉菜单等内部可独立滚动的区域，不接管，保持原生手感
+                if (e.target.closest && e.target.closest('.nav-menu-panel, .player-playlist, .player-lyric, pre, .post-body .codehilite, .cs-panel')) {
+                    return;
+                }
+                e.preventDefault();
+                target = Math.min(maxScroll(), Math.max(0, target + e.deltaY));
+                if (!raf) raf = requestAnimationFrame(tick);
+            }, { passive: false });
+
+            window.addEventListener('scroll', () => {
+                if (selfTriggered) { selfTriggered = false; return; }
+                // 外部触发的滚动：直接同步，不跟阻尼动画抢位置
+                target = window.scrollY || document.documentElement.scrollTop;
+                current = target;
+                if (raf) { cancelAnimationFrame(raf); raf = null; }
+            }, { passive: true });
+
+            window.addEventListener('resize', () => {
+                target = Math.min(target, maxScroll());
+            });
         }
 
         // ── 鼠标粒子跟随 ──
@@ -1809,6 +1921,8 @@
         safeRun(bindSettingsPanel);
         safeRun(bindNoticeModal);
         safeRun(bindBackToTop);
+        safeRun(bindNavScrollState);
+        safeRun(initDampedScroll);
         safeRun(initTagsHubView);
         safeRun(initArchiveFilters);
         safeRun(registerAudioAccelSW);
@@ -1838,6 +1952,7 @@
                 safeRun(bindSettingsPanel);
                 safeRun(bindNoticeModal);
                 safeRun(bindBackToTop);
+                safeRun(bindNavScrollState);
                 safeRun(initTagsHubView);
                 safeRun(initArchiveFilters);
                 safeRun(bindMusicPlayer);

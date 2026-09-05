@@ -238,23 +238,34 @@
 
         nav {
             position: sticky;
-            top: 10px;
+            top: 0;
             z-index: 1000;
-            margin: 10px auto;
-            width: calc(100% - 40px);
-            max-width: 1360px;
-            background: rgba(6, 6, 15, 0.72);
-            backdrop-filter: blur(32px) saturate(180%);
-            -webkit-backdrop-filter: blur(32px) saturate(180%);
-            border: 1px solid var(--border);
-            border-radius: 50px;
-            padding: 0 10px;
+            margin: 0;
+            width: 100%;
+            max-width: none;
+            background: rgba(14, 12, 20, .38);
+            backdrop-filter: blur(22px) saturate(180%);
+            -webkit-backdrop-filter: blur(22px) saturate(180%);
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, .07);
+            border-radius: 0;
+            padding: 0 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 8px;
-            height: 52px;
-            box-shadow: var(--shadow);
+            height: 60px;
+            box-shadow: none;
+            transition: background .35s var(--ease-std), box-shadow .35s var(--ease-std), border-color .35s var(--ease-std);
+        }
+
+        /* 停留在顶部（未滚动）时更透一些；一旦开始滚动，背景略加深、加一层浅浅的
+           投影，跟下面内容拉开层次——JS 侧只需给 nav 切换 .cnfte-nav-scrolled，
+           具体观感全部交给这两条规则决定 */
+        nav.cnfte-nav-scrolled {
+            background: rgba(10, 9, 16, .62);
+            border-bottom-color: rgba(255, 255, 255, .1);
+            box-shadow: 0 12px 32px -18px rgba(0, 0, 0, .55);
         }
 
         /* 左侧菜单键：点开中间弹出的站点菜单（见 .nav-menu-overlay），
@@ -311,68 +322,79 @@
             transition: transform .18s var(--ease-press);
         }
 
-        /* ══════════ 中间弹出的站点菜单 ══════════ */
+        /* ══════════ 左侧滑出的站点菜单抽屉 ══════════ */
         .nav-menu-overlay {
             position: fixed;
             inset: 0;
             z-index: 1200;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            opacity: 0;
             visibility: hidden;
-            transition: opacity .35s var(--ease-out), visibility 0s linear .35s;
+            pointer-events: none;
+            transition: visibility 0s linear .45s;
         }
 
         .nav-menu-overlay.open {
-            opacity: 1;
             visibility: visible;
-            transition: opacity .35s var(--ease-out), visibility 0s linear 0s;
+            pointer-events: all;
+            transition: visibility 0s linear 0s;
         }
 
         .nav-menu-backdrop {
             position: absolute;
             inset: 0;
-            background: rgba(4, 4, 10, .72);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-        }
-
-        .nav-menu-panel {
-            position: relative;
-            z-index: 1;
-            background: var(--glass-heavy);
-            border: 1px solid var(--border);
-            border-radius: var(--r-lg);
-            padding: 46px 30px 34px;
-            width: min(420px, 100%);
-            max-height: min(560px, 80vh);
-            overflow-y: auto;
-            text-align: center;
-            box-shadow: 0 30px 80px rgba(0, 0, 0, .55);
-            /* iOS 风格"从触发点弹出"：初始态用 JS（见 applyMorphOrigin）把面板
-               缩放/位移到菜单键的实际屏幕位置和大小，这里只声明变量默认值兜底
-               （没跑 JS 之前，比如禁用脚本时）——真正弹出效果由 --morph-* 决定，
-               不再是固定的"从中间缩小弹出"。 */
-            --morph-x: 0px;
-            --morph-y: 24px;
-            --morph-sx: .82;
-            --morph-sy: .82;
-            transform: translate(var(--morph-x), var(--morph-y)) scale(var(--morph-sx), var(--morph-sy));
+            background: rgba(4, 4, 10, .6);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             opacity: 0;
-            transition: transform .55s var(--ease-spring), opacity .4s var(--ease-out);
+            transition: opacity .4s var(--ease-out);
         }
 
-        .nav-menu-overlay.open .nav-menu-panel {
-            transform: translate(0, 0) scale(1, 1);
+        .nav-menu-overlay.open .nav-menu-backdrop {
             opacity: 1;
         }
 
-        .nav-menu-close {
+        /* 从触发点所在的左侧边缘滑出，而不是在屏幕正中间放大出现的弹窗 */
+        .nav-menu-panel {
             position: absolute;
-            top: 14px;
-            right: 14px;
+            top: 0;
+            left: 0;
+            z-index: 1;
+            height: 100%;
+            height: 100dvh;
+            width: min(300px, 84vw);
+            background: linear-gradient(165deg, rgba(22, 20, 32, .97), rgba(8, 7, 13, .98));
+            border-right: 1px solid rgba(255, 255, 255, .09);
+            box-shadow: 24px 0 60px rgba(0, 0, 0, .5);
+            padding: 20px 20px 28px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            transform: translateX(-100%);
+            transition: transform .45s var(--ease-spring);
+            will-change: transform;
+        }
+
+        .nav-menu-overlay.open .nav-menu-panel {
+            transform: translateX(0);
+        }
+
+        .nav-menu-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-shrink: 0;
+        }
+
+        .nav-menu-brand {
+            font-family: 'ZCOOL KuaiLe';
+            font-size: 1.05rem;
+            background: var(--grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .nav-menu-close {
             width: 34px;
             height: 34px;
             border-radius: 50%;
@@ -380,6 +402,7 @@
             align-items: center;
             justify-content: center;
             color: rgba(255, 255, 255, .5);
+            flex-shrink: 0;
             transition: transform .4s var(--ease-spring), color .2s, background .2s;
         }
 
@@ -392,26 +415,44 @@
         .nav-menu-links {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
         }
 
+        /* 每个链接单独淡入 + 轻微右移，抽屉展开时从上到下依次错落出现，
+           而不是整块内容一次性生硬地跳出来 */
         .nav-menu-links a {
             font-weight: 700;
             font-size: 1.02rem;
             color: rgba(255, 255, 255, .78);
-            padding: 13px 18px;
+            padding: 13px 16px;
             border-radius: var(--r-md);
-            transition: background .2s, color .2s, transform .3s var(--ease-spring);
+            text-align: left;
+            opacity: 0;
+            transform: translateX(-14px);
+            transition: background .2s, color .2s, transform .3s var(--ease-out);
         }
+
+        .nav-menu-overlay.open .nav-menu-links a {
+            opacity: 1;
+            transform: translateX(0);
+            transition: background .2s, color .2s, opacity .4s var(--ease-out), transform .4s var(--ease-out);
+        }
+
+        .nav-menu-overlay.open .nav-menu-links a:nth-child(1) { transition-delay: .08s; }
+        .nav-menu-overlay.open .nav-menu-links a:nth-child(2) { transition-delay: .13s; }
+        .nav-menu-overlay.open .nav-menu-links a:nth-child(3) { transition-delay: .18s; }
+        .nav-menu-overlay.open .nav-menu-links a:nth-child(4) { transition-delay: .23s; }
+        .nav-menu-overlay.open .nav-menu-links a:nth-child(5) { transition-delay: .28s; }
+        .nav-menu-overlay.open .nav-menu-links a:nth-child(n+6) { transition-delay: .32s; }
 
         .nav-menu-links a:hover {
             background: var(--glass-md);
             color: #fff;
-            transform: scale(1.03);
+            transform: translateX(3px);
         }
 
         .nav-menu-links a:active {
-            transform: scale(.96);
+            transform: scale(.97);
             transition: transform .15s var(--ease-press);
         }
 
@@ -1405,8 +1446,8 @@
 
 
         .terminal-widget {
-            background: rgba(2, 2, 8, .7);
-            border: 1px solid rgba(0, 255, 120, .15);
+            background: rgba(6, 5, 12, .7);
+            border: 1px solid var(--border);
             border-radius: var(--r-md);
             padding: 18px 20px;
             font-family: 'Fira Code';
@@ -1414,13 +1455,15 @@
             line-height: 2;
         }
 
+        /* 之前这里是独立的荧光绿"黑客终端"配色，跟站点其余部分统一的
+           accent 玻璃拟态语言完全不搭，是首页看起来"脏"的一大来源；
+           改成用站点自己的主题色，保留等宽字体的"终端感"就够了 */
         .terminal-widget .t-line {
-            color: #00ffaa;
+            color: rgba(255, 255, 255, .82);
         }
 
-        /* FIX: t-dim 对比度提升 */
         .terminal-widget .t-dim {
-            color: rgba(0, 255, 170, .55);
+            color: rgba(255, 255, 255, .38);
         }
 
         .terminal-widget .t-accent {
@@ -1501,7 +1544,7 @@
         .anime-ep {
             font-family: 'Fira Code';
             font-size: .65rem;
-            color: rgba(153, 204, 255, .7);
+            color: rgba(255, 255, 255, .48);
             letter-spacing: .5px;
         }
 
@@ -1515,10 +1558,12 @@
             white-space: nowrap;
         }
 
+        /* 追番状态徽标改用站点自己的主题色，不再单独引入一个荧光绿，
+           跟终端组件、标签色一起统一到同一套配色上 */
         .anime-status.airing {
-            background: rgba(0, 255, 128, .1);
-            color: #00ff80;
-            border: 1px solid rgba(0, 255, 128, .2);
+            background: color-mix(in srgb, var(--accent) 14%, transparent);
+            color: var(--accent);
+            border: 1px solid var(--border-accent);
         }
 
         /* FIX: anime-status.ended 对比度不足 — 从 rgba(255,255,255,.35) 提升到 #aaa */
@@ -2047,9 +2092,6 @@
                 height: 180px;
             }
 
-            nav {
-                top: 6px;
-            }
         }
 
         @media (max-width:600px) {
@@ -2128,7 +2170,7 @@
             }
 
             nav {
-                padding: 0 6px;
+                padding: 0 10px;
             }
         }
 
@@ -2235,15 +2277,18 @@
         </div>
     </nav>
 
-    <!-- 点击左侧菜单键后从中间弹出的站点菜单，原来常驻导航栏里的一排页面链接
+    <!-- 点击左侧菜单键后从左侧滑出的站点菜单抽屉，原来常驻导航栏里的一排页面链接
          都收进这里了；本身在 SPA 换页时不会被 navigate() 替换（不在它接管的
          nav / hero-wrap / main-grid / footer 四个区域内），只需要重新绑定事件 -->
     <div class="nav-menu-overlay" id="nav-menu-overlay">
         <div class="nav-menu-backdrop" id="nav-menu-backdrop"></div>
         <div class="nav-menu-panel" id="nav-menu-panel" role="dialog" aria-modal="true" aria-label="站点菜单">
-            <button class="nav-menu-close" id="nav-menu-close" aria-label="关闭菜单">
-                <i class="fas fa-xmark" aria-hidden="true"></i>
-            </button>
+            <div class="nav-menu-head">
+                <span class="nav-menu-brand">{{ config.logo_text }}</span>
+                <button class="nav-menu-close" id="nav-menu-close" aria-label="关闭菜单">
+                    <i class="fas fa-xmark" aria-hidden="true"></i>
+                </button>
+            </div>
             <div class="nav-menu-links">
                 {% for np in nav_pages %}<a href="{{ np.url }}" data-spa>{{ np.title }}</a>{% endfor %}
             </div>
@@ -2685,16 +2730,12 @@
         document.addEventListener('click', e => { const { wrap } = getSearchEls(); if (wrap && !wrap.contains(e.target)) toggleSearch(false); }, { capture: true });
         bindSearch();
 
-        // ── 左侧菜单键：点开从菜单键位置"长出来"的站点菜单（iOS 打开应用式）──
+        // ── 左侧菜单键：点开从左侧边缘滑出的站点菜单抽屉 ──
         function setNavMenuOpen(open) {
             const overlay = document.getElementById('nav-menu-overlay');
             const btn = document.getElementById('nav-menu-toggle');
-            const panel = document.getElementById('nav-menu-panel');
             if (!overlay) return;
             const o = open !== undefined ? open : !overlay.classList.contains('open');
-            // 打开前先量出菜单键的真实屏幕位置/尺寸，让面板从那一点开始放大+滑动，
-            // 而不是固定地从屏幕正中间缩放出来；applyMorphOrigin 定义在 _enhance.html。
-            if (o && btn && panel && window.applyMorphOrigin) window.applyMorphOrigin(btn, panel);
             overlay.classList.toggle('open', o);
             document.body.classList.toggle('nav-menu-locked', o);
             if (btn) btn.setAttribute('aria-expanded', o ? 'true' : 'false');
