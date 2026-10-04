@@ -583,13 +583,13 @@
         transform: scale(.88);
     }
 
-    .player-list-toggle.open i {
-        transform: none;
+    .player-list-toggle svg {
+        transition: transform .35s var(--ease-spring);
+        pointer-events: none;
     }
 
-    .player-list-toggle i {
-        transition: transform .4s var(--ease-spring);
-        pointer-events: none;
+    .player-list-toggle.open svg {
+        transform: rotate(180deg);
     }
 
     .player-track-info {
@@ -736,12 +736,23 @@
         transition: transform .35s var(--ease-spring), background .2s, color .2s;
     }
 
+    .player-btn svg {
+        width: 17px;
+        height: 17px;
+        display: block;
+        transition: transform .25s var(--ease-spring);
+    }
+
     .player-btn:hover {
         background: var(--glass);
     }
 
+    .player-btn:hover svg {
+        transform: scale(1.08);
+    }
+
     .player-btn:active {
-        transform: scale(.82);
+        transform: scale(.88);
     }
 
     .player-btn-play {
@@ -753,15 +764,25 @@
         position: relative;
     }
 
+    .player-btn-play svg {
+        width: 19px;
+        height: 19px;
+    }
+
     .player-btn-play:hover {
         background: var(--grad);
         filter: brightness(1.08);
+        transform: scale(1.05);
+    }
+
+    .player-btn-play:active {
+        transform: scale(.92);
     }
 
     /* 缓冲不足時（比如刚切歌、或者弱网下加速也追不上播放速度导致卡顿）转圈提示，
        状态直接来自 <audio> 的 waiting/playing 原生事件，不是自己算的假进度——
        流式播放没有一个能准确代表"还要等多久"的百分比，只有"现在是不是在等" */
-    .player-btn-play.loading #player-play-icon {
+    .player-btn-play.loading svg {
         opacity: 0;
     }
 
@@ -774,8 +795,9 @@
         height: 16px;
         margin: -8px 0 0 -8px;
         border-radius: 50%;
-        border: 2px solid rgba(255, 255, 255, .3);
-        border-top-color: #fff;
+        border: 2px solid currentColor;
+        border-top-color: transparent;
+        opacity: .8;
         animation: playerSpin .7s linear infinite;
     }
 
@@ -785,10 +807,12 @@
 
     .player-btn-mode.mode-random {
         color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
     }
 
     .player-btn-mode.mode-single {
         color: var(--accent2);
+        background: color-mix(in srgb, var(--accent2) 16%, transparent);
     }
 
     /* 播放列表：只在播放器卡片内部展开（max-height 弹性动画），不是全局弹层 */
@@ -1899,29 +1923,33 @@
             if (titleEl) titleEl.textContent = track ? track.title : '未加载音频';
             if (artistEl) artistEl.textContent = track ? (track.artist || '') : '';
 
-            const playIcon = document.getElementById('player-play-icon');
-            if (playIcon) {
+            const playBtn = document.getElementById('player-play');
+            if (playBtn) {
                 const playing = cnftePlayer.audioEl && !cnftePlayer.audioEl.paused;
-                playIcon.innerHTML = playing
-                    ? '<svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>'
-                    : '<svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>';
+                playBtn.classList.toggle('playing', playing);
+                const playLabel = playing ? '暂停' : '播放';
+                playBtn.title = playLabel;
+                playBtn.setAttribute('aria-label', playLabel);
+                playBtn.innerHTML = playing
+                    ? '<svg class="svg-icon" id="player-play-icon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1.5"/><rect x="14" y="4" width="4" height="16" rx="1.5"/></svg>'
+                    : '<svg class="svg-icon" id="player-play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="7 4 19 12 7 20 7 4"/></svg>';
             }
 
             const modeBtn = document.getElementById('player-mode');
-            const modeIcon = document.getElementById('player-mode-icon');
-            if (modeBtn && modeIcon) {
-                modeBtn.classList.toggle('mode-random', cnftePlayer.mode === 'random');
-                modeBtn.classList.toggle('mode-single', cnftePlayer.mode === 'single');
-                if (cnftePlayer.mode === 'random') {
-                    modeIcon.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>';
-                } else if (cnftePlayer.mode === 'single') {
-                    modeIcon.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><line x1="12" y1="10" x2="12" y2="14"/></svg>';
-                } else {
-                    modeIcon.innerHTML = '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
-                }
-                const label = cnftePlayer.mode === 'random' ? '随机播放' : cnftePlayer.mode === 'single' ? '单曲循环' : '顺序播放';
+            if (modeBtn) {
+                const mode = cnftePlayer.mode || 'order';
+                modeBtn.classList.toggle('mode-random', mode === 'random');
+                modeBtn.classList.toggle('mode-single', mode === 'single');
+                const label = mode === 'random' ? '随机播放' : mode === 'single' ? '单曲循环' : '顺序循环';
                 modeBtn.title = label;
                 modeBtn.setAttribute('aria-label', label);
+                if (mode === 'random') {
+                    modeBtn.innerHTML = '<svg class="svg-icon" id="player-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>';
+                } else if (mode === 'single') {
+                    modeBtn.innerHTML = '<svg class="svg-icon" id="player-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><path d="M11 10.5 12 9.5v5"/></svg>';
+                } else {
+                    modeBtn.innerHTML = '<svg class="svg-icon" id="player-mode-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>';
+                }
             }
 
             const listEl = document.getElementById('player-playlist');
