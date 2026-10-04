@@ -519,6 +519,26 @@
         padding: 2px;
     }
 
+    .cs-swatch-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        cursor: pointer;
+        padding: 0;
+        transition: transform .25s var(--ease-spring), border-color .2s;
+    }
+
+    .cs-swatch-dot:hover {
+        transform: scale(1.25);
+    }
+
+    .cs-swatch-dot.active {
+        border-color: #fff;
+        transform: scale(1.15);
+        box-shadow: 0 0 8px rgba(255, 255, 255, .4);
+    }
+
     /* ── 文章封面缺省毛笔占位（没有 cover / 图池 / 随机图 API 时的兜底）── */
     .post-cover-default {
         width: 100%;
@@ -916,8 +936,23 @@
     </div>
 
     <div class="cs-row">
-        <label class="cs-label" for="cs-color-input">主题色</label>
-        <input type="color" id="cs-color-input" class="cs-color-input" aria-label="自定义主题色" value="{{ config.theme_color | default('#ff99cc') }}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+            <label class="cs-label" for="cs-color-input" style="margin-bottom:0">主题色调色盘</label>
+            <span id="cs-color-val" style="font-family:var(--mono, monospace);font-size:.72rem;color:var(--accent);letter-spacing:.5px;font-weight:600">{{ config.theme_color | default('#ff99cc') | upper }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <input type="color" id="cs-color-input" class="cs-color-input" aria-label="自定义主题色调色盘" value="{{ config.theme_color | default('#ff99cc') }}" style="flex:1;height:34px">
+        </div>
+        <div class="cs-palette-swatches" id="cs-palette-swatches" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" class="cs-swatch-dot" data-color="#ff99cc" style="background:#ff99cc" title="Sakura 樱粉" aria-label="Sakura"></button>
+            <button type="button" class="cs-swatch-dot" data-color="#a855f7" style="background:#a855f7" title="Violet 紫罗兰" aria-label="Violet"></button>
+            <button type="button" class="cs-swatch-dot" data-color="#06b6d4" style="background:#06b6d4" title="Cyber 赛博青" aria-label="Cyber"></button>
+            <button type="button" class="cs-swatch-dot" data-color="#10b981" style="background:#10b981" title="Mint 薄荷绿" aria-label="Mint"></button>
+            <button type="button" class="cs-swatch-dot" data-color="#f59e0b" style="background:#f59e0b" title="Amber 暖金" aria-label="Amber"></button>
+            <button type="button" class="cs-swatch-dot" data-color="#f43f5e" style="background:#f43f5e" title="Rose 绯红" aria-label="Rose"></button>
+            <button type="button" class="cs-swatch-dot" data-color="#3b82f6" style="background:#3b82f6" title="Blue 霁蓝" aria-label="Blue"></button>
+            <button type="button" class="cs-swatch-dot" data-color="#64748b" style="background:#64748b" title="Slate 钛灰" aria-label="Slate"></button>
+        </div>
     </div>
 
     <div class="cs-row">
@@ -1061,11 +1096,16 @@
 
         function syncPanelUI() {
             const sidebar = localStorage.getItem(LS.sidebar) || 'right';
-            const color = localStorage.getItem(LS.color) || DEFAULT_COLOR;
+            const color = (localStorage.getItem(LS.color) || DEFAULT_COLOR).toLowerCase();
 
             document.querySelectorAll('[data-cs-group="sidebar"] button').forEach(b => b.classList.toggle('active', b.dataset.val === sidebar));
             const colorInput = document.getElementById('cs-color-input');
+            const colorVal = document.getElementById('cs-color-val');
             if (colorInput) colorInput.value = color;
+            if (colorVal) colorVal.textContent = color.toUpperCase();
+            document.querySelectorAll('#cs-palette-swatches .cs-swatch-dot').forEach(s => {
+                s.classList.toggle('active', s.dataset.color.toLowerCase() === color);
+            });
         }
 
         function applyPersistedUI() {
@@ -1118,12 +1158,23 @@
             });
 
             const colorInput = document.getElementById('cs-color-input');
-            if (colorInput) {
-                colorInput.addEventListener('input', () => {
-                    localStorage.setItem(LS.color, colorInput.value);
-                    applyThemeColor(colorInput.value);
-                });
+            const swatches = document.querySelectorAll('#cs-palette-swatches .cs-swatch-dot');
+
+            function applyAndSaveColor(val) {
+                if (!val) return;
+                val = val.trim().toLowerCase();
+                if (!val.startsWith('#') && /^[0-9a-f]{6}$/i.test(val)) val = '#' + val;
+                localStorage.setItem(LS.color, val);
+                applyThemeColor(val);
+                syncPanelUI();
             }
+
+            if (colorInput) {
+                colorInput.addEventListener('input', () => applyAndSaveColor(colorInput.value));
+            }
+            swatches.forEach(b => {
+                b.addEventListener('click', () => applyAndSaveColor(b.dataset.color));
+            });
 
             const resetBtn = document.getElementById('cs-reset-btn');
             if (resetBtn) {

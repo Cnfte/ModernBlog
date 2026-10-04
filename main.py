@@ -396,9 +396,13 @@ tr.selected td{background:rgba(56,189,248,0.08);color:var(--text)}
 .statusbar .st-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:4px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
+
+/* ── Palette Swatches ── */
+.swatch-chip{width:18px;height:18px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;transition:transform .12s linear,border-color .12s linear}
+.swatch-chip:hover{transform:scale(1.28)}
+.swatch-chip.active{border-color:#fff;transform:scale(1.18);box-shadow:0 0 6px rgba(255,255,255,0.45)}
 
 @media(prefers-reduced-transparency:reduce){
   .modal-overlay{background:rgba(9,10,16,0.92);backdrop-filter:none}
@@ -581,16 +585,26 @@ tr.selected td{background:rgba(56,189,248,0.08);color:var(--text)}
       <div class="field-row">
         <div><label class="field-label">Logo 文字</label><input data-cfg="logo_text" placeholder="BLOG"></div>
         <div><label class="field-label">每页文章数</label><input data-cfg="posts_per_page" placeholder="8"></div>
-        <div><label class="field-label">主题配色（预设）</label>
-          <select data-cfg="theme_color">
-            <option value="sakura">Sakura 樱粉</option>
-            <option value="violet">Violet 紫罗兰</option>
-            <option value="cyber">Cyber 赛博青</option>
-            <option value="gold">Gold 暖金</option>
-            <option value="mint">Mint 薄荷绿</option>
-            <option value="dark">Dark 极致暗黑</option>
-          </select>
+        <div>
+          <label class="field-label">主题调色盘（点击色块自由取色）</label>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input type="color" id="cfg-color-picker" style="width:36px;height:32px;padding:2px;border:1px solid var(--border);border-radius:var(--r);background:var(--input-bg);cursor:pointer;flex-shrink:0" value="#ff99cc" aria-label="调色盘取色">
+            <input data-cfg="theme_color" id="cfg-theme-color" placeholder="#ff99cc" style="font-family:var(--mono);text-transform:uppercase;flex:1" maxlength="7">
+            <div id="cfg-color-preview" title="主色与色相衍射渐变预览" style="width:52px;height:32px;border-radius:var(--r);border:1px solid var(--border);flex-shrink:0;background:linear-gradient(135deg, #ff99cc 0%, #ffcc99 100%)"></div>
+          </div>
         </div>
+      </div>
+      <div style="margin-top:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:.7rem;color:var(--dim)">快捷推荐：</span>
+        <button type="button" class="swatch-chip" data-color="#ff99cc" style="background:#ff99cc" title="Sakura 樱粉" aria-label="Sakura"></button>
+        <button type="button" class="swatch-chip" data-color="#a855f7" style="background:#a855f7" title="Violet 紫罗兰" aria-label="Violet"></button>
+        <button type="button" class="swatch-chip" data-color="#06b6d4" style="background:#06b6d4" title="Cyber 赛博青" aria-label="Cyber"></button>
+        <button type="button" class="swatch-chip" data-color="#10b981" style="background:#10b981" title="Mint 薄荷绿" aria-label="Mint"></button>
+        <button type="button" class="swatch-chip" data-color="#f59e0b" style="background:#f59e0b" title="Amber 暖金" aria-label="Amber"></button>
+        <button type="button" class="swatch-chip" data-color="#f43f5e" style="background:#f43f5e" title="Rose 绯红" aria-label="Rose"></button>
+        <button type="button" class="swatch-chip" data-color="#3b82f6" style="background:#3b82f6" title="Blue 霁蓝" aria-label="Blue"></button>
+        <button type="button" class="swatch-chip" data-color="#64748b" style="background:#64748b" title="Slate 钛灰" aria-label="Slate"></button>
+        <span style="font-size:.68rem;color:var(--dim);margin-left:4px">可直接点击色块取色或在输入框微调十六进制代码</span>
       </div>
       <div>
         <label class="field-label">全站背景图（为空则使用深色网格纯色底）</label>
@@ -1403,6 +1417,81 @@ document.getElementById('asset-upload').onchange = async (e) => {
   e.target.value = '';
 };
 
+// ─── Theme Color Palette Helper ───
+const LEGACY_COLOR_PRESETS = {
+  'sakura': '#ff99cc', 'violet': '#a855f7', 'cyber': '#06b6d4',
+  'gold': '#f59e0b', 'mint': '#10b981', 'dark': '#1e293b'
+};
+
+function shiftHueClient(hex, deg) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+  if (!m) return hex;
+  let r = parseInt(m[1], 16)/255, g = parseInt(m[2], 16)/255, b = parseInt(m[3], 16)/255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = s = 0; } else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      default: h = (r - g) / d + 4;
+    }
+    h /= 6;
+  }
+  h = (h + deg / 360) % 1;
+  function hue2rgb(p, q, t) {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  }
+  let r2, g2, b2;
+  if (s === 0) { r2 = g2 = b2 = l; } else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r2 = hue2rgb(p, q, h + 1 / 3); g2 = hue2rgb(p, q, h); b2 = hue2rgb(p, q, h - 1 / 3);
+  }
+  return '#' + [r2, g2, b2].map(x => Math.round(x * 255).toString(16).padStart(2, '0')).join('');
+}
+
+function syncThemeColorUI(val) {
+  if (!val) val = '#ff99cc';
+  val = String(val).trim().toLowerCase();
+  if (val in LEGACY_COLOR_PRESETS) val = LEGACY_COLOR_PRESETS[val];
+  if (!val.startsWith('#') && /^[0-9a-f]{6}$/i.test(val)) val = '#' + val;
+  const textInput = document.getElementById('cfg-theme-color');
+  const picker = document.getElementById('cfg-color-picker');
+  const prev = document.getElementById('cfg-color-preview');
+  if (textInput && textInput.value.toLowerCase() !== val) textInput.value = val;
+  if (/^#[0-9a-f]{6}$/i.test(val)) {
+    if (picker) picker.value = val;
+    if (prev) prev.style.background = `linear-gradient(135deg, ${val} 0%, ${shiftHueClient(val, 30)} 100%)`;
+  }
+  document.querySelectorAll('.swatch-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.color.toLowerCase() === val);
+  });
+}
+
+function initThemeColorPicker() {
+  const picker = document.getElementById('cfg-color-picker');
+  const textInput = document.getElementById('cfg-theme-color');
+  if (picker) {
+    picker.addEventListener('input', () => syncThemeColorUI(picker.value));
+  }
+  if (textInput) {
+    textInput.addEventListener('input', () => {
+      let v = textInput.value.trim();
+      if (!v.startsWith('#') && v.length === 6) v = '#' + v;
+      if (/^#[0-9a-f]{6}$/i.test(v)) syncThemeColorUI(v);
+    });
+  }
+  document.querySelectorAll('.swatch-chip').forEach(btn => {
+    btn.addEventListener('click', () => syncThemeColorUI(btn.dataset.color));
+  });
+}
+
 // ─── Settings ───
 async function loadSettings() {
   const res = await fetch('/api/config');
@@ -1418,6 +1507,7 @@ async function loadSettings() {
     const k = el.dataset.cfgBool;
     if (k in cfg) el.checked = Boolean(cfg[k]);
   });
+  syncThemeColorUI(cfg.theme_color || '#ff99cc');
   const kEl = document.getElementById('indexnow-key');
   if (kEl) kEl.value = cfg.indexnow_key || '';
   const dEl = document.getElementById('cfg-site-desc');
@@ -2101,6 +2191,7 @@ function clearLog() {
 
 // 默认载入
 loadFileList();
+initThemeColorPicker();
 </script>
 </body>
 </html>"""

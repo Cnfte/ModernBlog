@@ -41,6 +41,12 @@ def _derive_theme_colors(hex_color: str) -> dict:
     """
     DEFAULT_HEX = '#ff99cc'
     hex_color = (hex_color or DEFAULT_HEX).strip().lower()
+    legacy_map = {
+        'sakura': '#ff99cc', 'violet': '#a855f7', 'cyber': '#06b6d4',
+        'gold': '#f59e0b', 'mint': '#10b981', 'dark': '#1e293b'
+    }
+    if hex_color in legacy_map:
+        hex_color = legacy_map[hex_color]
     m = re.match(r'^#?([0-9a-fA-F]{6})$', hex_color)
     if not m:
         hex_color = DEFAULT_HEX
@@ -257,7 +263,7 @@ def build():
         config['show_notice_widget'] = snw.lower() not in ('false', '0', 'no', '')
 
     _safe_remove(OUTPUT_DIR)
-    os.makedirs(OUTPUT_DIR)
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
     open(os.path.join(OUTPUT_DIR, '.nojekyll'), 'w').close()
 
     # ── Monetag sw.js ──
