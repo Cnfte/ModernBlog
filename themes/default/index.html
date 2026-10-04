@@ -866,11 +866,13 @@
             margin-bottom: 24px;
             object-fit: cover;
             box-shadow: 0 8px 40px rgba(0, 0, 0, .4);
+            animation: cnfteSpin 8s linear infinite;
             transition: transform .6s var(--ease);
         }
 
         .hero-avatar:hover {
-            transform: none scale(1.06);
+            transform: scale(1.06);
+            animation-play-state: paused;
         }
 
         .hero-name {
