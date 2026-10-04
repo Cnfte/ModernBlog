@@ -2106,11 +2106,15 @@
         // 侧边栏/播放器再也不会被重新揭示 / 重新绑定」的问题。
         let debounceTimer;
         cnfteObserver = new MutationObserver((mutations) => {
-            const onlyHeroTyping = mutations.length > 0 && mutations.every(m => {
+            // 过滤掉只发生在 .hero-bio 内部的 mutation（打字机动画产生的文本节点变化）
+            // 以及只发生在 #cnfte-player-widget 内部的 mutation（renderPlayerWidget
+            // 自己用 innerHTML 更新按钮图标触发的），避免两种情况造成无限重绑定循环。
+            const onlyInternal = mutations.length > 0 && mutations.every(m => {
                 const t = m.target;
-                return t && t.nodeType === 1 && t.closest && t.closest('.hero-bio');
+                if (!t || t.nodeType !== 1 || !t.closest) return false;
+                return t.closest('.hero-bio') || t.closest('#cnfte-player-widget');
             });
-            if (onlyHeroTyping) return;
+            if (onlyInternal) return;
 
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
