@@ -212,7 +212,7 @@ def build():
 
     config_path = os.path.join(CONTENT_DIR, 'config.json')
     if not os.path.exists(config_path):
-        print("❌ 找不到 config.json，请先运行 main.py 初始化。")
+        print("[ERR] 找不到 config.json，请先运行 main.py 初始化。")
         return
     with open(config_path, 'r', encoding='utf-8') as f:
         config = json.load(f)
@@ -264,14 +264,24 @@ def build():
     sw_src = os.path.join(CONTENT_DIR, 'sw.js')
     if os.path.exists(sw_src):
         shutil.copy2(sw_src, os.path.join(OUTPUT_DIR, 'sw.js'))
-        print("📢 sw.js 已复制到输出目录（Monetag Push Ads）")
+        print("[INFO] sw.js 已复制到输出目录（Monetag Push Ads）")
     elif config.get('monetag_tag_code', '').strip():
-        print("⚠️  检测到 Monetag 广告代码，但未找到 content/sw.js。")
+        print("[WARN] 检测到 Monetag 广告代码，但未找到 content/sw.js。")
 
     attach_src = os.path.join(CONTENT_DIR, 'attachments')
     if os.path.exists(attach_src):
         dest_attach = os.path.join(OUTPUT_DIR, 'attachments')
         _copy_tree_fast(attach_src, dest_attach)
+        dest_assets = os.path.join(OUTPUT_DIR, 'assets')
+        _copy_tree_fast(attach_src, dest_assets)
+
+    # ── Favicon 兜底 ──
+    fav_content = os.path.join(CONTENT_DIR, 'favicon.ico')
+    fav_theme = os.path.join(THEME_DIR, 'favicon.ico')
+    if os.path.exists(fav_content):
+        shutil.copy2(fav_content, os.path.join(OUTPUT_DIR, 'favicon.ico'))
+    elif os.path.exists(fav_theme):
+        shutil.copy2(fav_theme, os.path.join(OUTPUT_DIR, 'favicon.ico'))
 
     # ── 音乐播放器：音轨 + 歌词数据打进静态页面，音频文件复制到 public/audio/files ──
     # （构建产物是纯静态文件，后台面板的 Flask 服务不会跟着一起发布，所以前端播放器
@@ -282,9 +292,9 @@ def build():
             audio_tracks = _am.export_for_build(BASE_DIR)
             n = _am.copy_audio_files_to_build(BASE_DIR, OUTPUT_DIR)
             if n:
-                print(f"🎵 已复制 {n} 个音频文件到 public/audio/files/")
+                print(f"[INFO] 已复制 {n} 个音频文件到 public/audio/files/")
         except Exception as e:
-            print(f"⚠️  音频库导出失败，播放器将不显示任何歌曲: {e}")
+            print(f"[WARN] 音频库导出失败，播放器将不显示任何歌曲: {e}")
             audio_tracks = []
 
         # ── 音频并行分片加速 Service Worker：注册域限定在 /audio/，不会跟
@@ -292,9 +302,9 @@ def build():
         accel_sw_src = os.path.join(THEME_DIR, 'audio-accel-sw.js')
         if os.path.exists(accel_sw_src):
             shutil.copy2(accel_sw_src, os.path.join(OUTPUT_DIR, 'audio-accel-sw.js'))
-            print("🚀 audio-accel-sw.js 已复制到输出目录（音频并行分片加速）")
+            print("[INFO] audio-accel-sw.js 已复制到输出目录（音频并行分片加速）")
         else:
-            print("⚠️  未找到 themes/default/audio-accel-sw.js，播放器将退回单流原生加载")
+            print("[WARN] 未找到 themes/default/audio-accel-sw.js，播放器将退回单流原生加载")
 
     env = Environment(
         loader=FileSystemLoader(THEME_DIR),
@@ -308,7 +318,7 @@ def build():
         idx_tpl = env.get_template('index.html')
         post_tpl = env.get_template('post.html')
     except Exception as e:
-        print(f"❌ 模板加载失败: {e}")
+        print(f"[ERR] 模板加载失败: {e}")
         return
 
     # ── 404 页面（GitHub Pages 约定：仓库根目录放一个 404.html，
@@ -331,6 +341,7 @@ def build():
 
         if lang == 'en' and os.path.exists(attach_src):
             _copy_tree_fast(attach_src, os.path.join(lang_out, 'attachments'))
+            _copy_tree_fast(attach_src, os.path.join(lang_out, 'assets'))
 
         search_index = []
 
@@ -369,11 +380,6 @@ def build():
                                         config=config, nav_pages=nav_pages, theme_colors=theme_colors,
                                         audio_tracks=audio_tracks))
             return final_url, meta.get('title', fn), _noindex
-            with open(out, 'w', encoding='utf-8') as f:
-                f.write(post_tpl.render(post=meta, i18n=I18N[lang], lang=lang,
-                                        config=config, nav_pages=nav_pages, theme_colors=theme_colors,
-                                        audio_tracks=audio_tracks))
-            return final_url, meta.get('title', fn), _noindex
 
         if os.path.exists(page_src):
             fns = [f for f in os.listdir(page_src) if f.endswith('.md')]
@@ -387,7 +393,7 @@ def build():
                             noindex_urls.add(url)
                         search_index.append({'title': title, 'url': url})
                     except Exception as e:
-                        print(f"⚠️  页面渲染错误: {e}")
+                        print(f"[WARN] 页面渲染错误: {e}")
 
         def render_post(fn, src_dir, out_base, u_prefix):
             fp = os.path.join(src_dir, fn)
@@ -443,7 +449,7 @@ def build():
                             noindex_urls.add(url)
                         search_index.append({'title': meta.get('title', ''), 'url': url})
                     except Exception as e:
-                        print(f"⚠️  文章渲染错误: {e}")
+                        print(f"[WARN] 文章渲染错误: {e}")
 
         posts_data.sort(key=lambda x: str(x.get('date', '0000-00-00')), reverse=True)
 
@@ -504,7 +510,7 @@ def build():
 
     elapsed = time.time() - t_start
     post_count = len([l for l in all_links if 'archive' in l])
-    print(f"✨ 构建完成！{post_count} 篇文章，耗时 {elapsed:.2f}s")
+    print(f"[OK] 构建完成！{post_count} 篇文章，耗时 {elapsed:.2f}s")
 
 
 def _generate_seo(out_dir: str, site_url: str, urls: list, noindex_urls: set,
