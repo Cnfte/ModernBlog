@@ -8,18 +8,16 @@
    不需要去改动 index.html / post.html 里原有的 navigate()/reinitPage()。
    ═══════════════════════════════════════════════════════════════ #}
 <style>
-    /* ── 侧边栏位置：左 / 右（默认）/ 不显示 ──
-       「左侧」这个选项只在双栏布局下有意义（对应 index.html/post.html 里
-       .layout-wrapper 在 >900px 时才是两栏，≤900px 会自己变成单栏堆叠）。
-       手机端不加这个媒体查询保护的话，选了「左侧」会被 #main-grid.sidebar-left
-       的 ID 选择器强行插入一条 grid-template-columns，把本该单栏的布局又拗成
-       双栏，导致内容被挤扁。这里用同一个 900px 断点把它锁在桌面/平板宽度内，
-       手机端该选项自动失效，不需要额外隐藏面板里的按钮或改 JS。 */
-    @media (min-width: 901px) {
+    /* ═══════════════════════════════════════════════════════════════════════
+       _enhance.html — Apple HIG Liquid Glass Enhancement Components
+       Settings Sheet · Now Playing Player · Grouped Archive · Chips · Reveal
+       ═══════════════════════════════════════════════════════════════════════ */
+
+    /* ── 侧边栏位置（仅桌面宽屏生效） ── */
+    @media (min-width: 961px) {
         #main-grid.sidebar-left {
             grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
         }
-
         #main-grid.sidebar-left #site-aside {
             order: -1;
         }
@@ -28,899 +26,759 @@
     #main-grid.sidebar-none {
         grid-template-columns: minmax(0, 1fr) !important;
     }
-
     #main-grid.sidebar-none #site-aside {
         display: none !important;
     }
 
+    /* ── 通用旋转关键帧（始终定义，供头像/播放图标使用） ── */
+    @keyframes cnfteSpin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     {% if config.enable_icon_spin | default(true) %}
-    /* ── 通用旋转图标工具类（受后台「启用图标旋转」开关控制）── */
     .cnfte-spin-slow {
         display: inline-block;
-        animation: cnfteSpin 5s linear infinite;
+        animation: cnfteSpin 6s linear infinite;
     }
-
     .cnfte-spin-hover {
         display: inline-block;
-        transition: transform .5s linear;
+        transition: transform .45s var(--ease-out);
     }
-
-    *:hover>.cnfte-spin-hover {
-        transform: none;
-    }
-
-    @keyframes cnfteSpin {
-        from {
-            transform: rotate(0deg);
-        }
-
-        to {
-            transform: rotate(360deg);
-        }
+    *:hover > .cnfte-spin-hover {
+        transform: rotate(90deg);
     }
     {% endif %}
 
     {% if config.enable_tag_bounce | default(true) %}
-    /* ── 标签 / 分类 选中弹跳动画（受后台「启用标签弹跳」开关控制）── */
     @keyframes cnfteTagBounce {
         0% { transform: translateY(0) scale(1); }
-        45% { transform: translateY(-4px) scale(1.06); }
-        75% { transform: translateY(1.5px) scale(0.98); }
+        45% { transform: translateY(-3px) scale(1.05); }
+        75% { transform: translateY(1px) scale(0.98); }
         100% { transform: translateY(0) scale(1); }
     }
-
     .cnfte-chip.active {
-        animation: cnfteTagBounce .45s cubic-bezier(0.34, 1.56, 0.64, 1);
+        animation: cnfteTagBounce .42s var(--ease-spring);
     }
     {% endif %}
 
+    /* ── HIG Pill Chips (Tags / Categories) ── */
     .cnfte-chip {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 4px 11px;
-        border-radius: 999px;
-        border: 1px solid var(--border);
-        background: var(--glass);
-        color: rgba(255, 255, 255, .68);
-        font-size: .72rem;
+        gap: 5px;
+        min-height: 30px;
+        padding: 4px 12px;
+        border-radius: var(--r-pill);
+        border: 1px solid var(--separator-subtle);
+        background: var(--fill-tertiary);
+        color: var(--label-primary);
+        font-size: 0.78rem;
+        font-weight: 500;
         cursor: pointer;
-        transition: border-color .2s, color .2s, background .2s, transform .35s var(--ease-spring);
         user-select: none;
+        transition: background .2s var(--ease-std), border-color .2s, color .2s, transform .28s var(--ease-spring);
     }
-
     .cnfte-chip:hover {
-        border-color: var(--border-accent);
-        color: var(--accent);
-        transform: translateY(-2px) scale(1.06);
+        background: var(--fill-primary);
+        border-color: rgba(255, 255, 255, 0.22);
+        color: #fff;
+        transform: translateY(-1px);
     }
-
     .cnfte-chip:active {
-        transform: scale(.92);
-        transition: transform .15s var(--ease-press);
+        transform: scale(0.94);
     }
-
     .cnfte-chip.active {
-        background: var(--grad);
-        background-size: 220% 220%;
-        background-position: 0% 50%;
-        color: #1a1620;
+        background: var(--accent);
+        color: #0b0b0e;
         border-color: transparent;
-        font-weight: 700;
-        box-shadow: 0 6px 18px -4px color-mix(in srgb, var(--accent) 55%, transparent);
-        transition: border-color .2s, color .2s, background-position .8s linear, box-shadow .3s, transform .35s var(--ease-spring);
+        font-weight: 650;
+        box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 42%, transparent);
     }
-
-    .cnfte-chip.active:hover {
-        background-position: 100% 50%;
-    }
-
     .cnfte-chip .chip-count {
-        opacity: .65;
-        font-size: .66rem;
+        opacity: 0.65;
+        font-size: 0.7rem;
+        font-variant-numeric: tabular-nums;
     }
 
-    /* ── 归档 widget：年 / 月 两级 ── */
+    /* ── HIG Inset Grouped Archive List ── */
     .cnfte-archive-level {
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 2px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--separator-subtle);
+        padding: 4px;
     }
 
     @keyframes cnfteSelectPop {
-        0% { opacity: 0.8; transform: translateX(0) scale(0.98); }
-        60% { opacity: 1; transform: translateX(6px) scale(1.02); }
-        85% { transform: translateX(3px) scale(0.995); }
-        100% { opacity: 1; transform: translateX(4px) scale(1.015); }
+        0% { transform: scale(0.98); }
+        60% { transform: scale(1.015); }
+        100% { transform: scale(1); }
     }
 
     .cnfte-archive-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 7px 10px;
+        min-height: 40px;
+        padding: 8px 12px;
         border-radius: 10px;
-        border: 1px solid var(--border);
-        border-left: 2px solid transparent;
-        background: var(--glass);
+        color: var(--label-primary);
+        font-size: 0.84rem;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
         cursor: pointer;
-        font-size: .78rem;
-        color: rgba(255, 255, 255, .75);
-        transition: border-color .25s, background .25s, color .2s, transform .35s var(--ease-spring);
+        transition: background .18s var(--ease-std), color .18s, transform .22s var(--ease-spring);
     }
-
     .cnfte-archive-row:hover {
-        border-color: var(--border-accent);
-        transform: translateX(4px) scale(1.015);
+        background: rgba(255, 255, 255, 0.09);
     }
-
     .cnfte-archive-row:active {
-        transform: scale(.97);
-        transition: transform .12s var(--ease-press);
+        transform: scale(0.98);
     }
-
-    /* 选中态弹性反馈动效 */
     .cnfte-archive-row.active {
-        border-color: var(--border-accent);
-        border-left-color: var(--accent);
-        background: color-mix(in srgb, var(--accent) 10%, var(--glass));
+        background: color-mix(in srgb, var(--accent) 22%, transparent);
         color: var(--accent);
-        animation: cnfteSelectPop .4s var(--ease-spring);
+        font-weight: 600;
+        animation: cnfteSelectPop .3s var(--ease-spring);
     }
-
     .cnfte-archive-row .arc-count {
-        font-size: .68rem;
-        opacity: .6;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.76rem;
+        color: var(--label-tertiary);
     }
-
     .cnfte-archive-back {
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: .72rem;
-        color: var(--accent);
-        cursor: pointer;
+        min-height: 36px;
+        padding: 6px 10px;
         margin-bottom: 4px;
-        width: fit-content;
+        border-radius: 10px;
+        color: var(--accent);
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .18s;
+    }
+    .cnfte-archive-back:hover {
+        background: color-mix(in srgb, var(--accent) 14%, transparent);
     }
 
-    /* ── 分页 ── */
+    /* ── Pagination (HIG Pill Controls) ── */
     #cnfte-pagination {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
-        margin: 28px 0 8px;
         flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 8px 0;
     }
-
     .cnfte-page-btn {
-        min-width: 34px;
-        height: 34px;
-        padding: 0 8px;
-        border-radius: 10px;
-        border: 1px solid var(--border);
-        background: var(--glass);
-        color: rgba(255, 255, 255, .68);
-        font-size: .78rem;
+        min-width: 40px;
+        height: 40px;
+        padding: 0 14px;
+        border-radius: var(--r-pill);
+        background: var(--material-regular);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        border: 1px solid var(--separator);
+        color: var(--label-primary);
+        font-size: 0.84rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
-        transition: border-color .2s, color .2s, background .2s, transform .35s var(--ease-spring);
+        transition: background .2s, border-color .2s, transform .25s var(--ease-spring), color .2s;
     }
-
     .cnfte-page-btn:hover:not(:disabled) {
-        border-color: var(--border-accent);
-        color: var(--accent);
-        transform: translateY(-3px) scale(1.08);
+        background: var(--fill-primary);
+        border-color: rgba(255, 255, 255, 0.24);
+        transform: translateY(-1px);
     }
-
     .cnfte-page-btn:active:not(:disabled) {
-        transform: scale(.88);
-        transition: transform .15s var(--ease-press);
+        transform: scale(0.93);
     }
-
-    /* 选中当前页增加弹性落定反馈 */
     .cnfte-page-btn.active {
-        background: var(--grad);
-        background-size: 220% 220%;
-        background-position: 0% 50%;
-        color: #1a1620;
-        font-weight: 700;
+        background: var(--accent);
+        color: #0b0b0e;
         border-color: transparent;
-        box-shadow: 0 6px 18px -4px color-mix(in srgb, var(--accent) 55%, transparent);
-        animation: cnfteSelectPop .4s var(--ease-spring);
+        box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 40%, transparent);
     }
-
     .cnfte-page-btn:disabled {
-        opacity: .35;
+        opacity: 0.35;
         cursor: not-allowed;
     }
 
+    /* ── Active Filter Bar ── */
     #cnfte-filter-bar {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        flex-wrap: wrap;
-        margin-bottom: 0;
-        transition: margin-bottom .2s linear;
-    }
-
-    /* 只有真的有筛选条件在生效（"清除筛选"那颗 chip 显示出来）时才占这 16px
-       的下边距；平时是空的，不占位，这样文章卡片列的第一张卡片顶部才能跟
-       侧栏第一个 widget（播放器）的顶部真正对齐，不会平白多出一截空隙。 */
-    #cnfte-filter-bar.has-active-filter {
-        margin-bottom: 16px;
-    }
-
-    #cnfte-clear-filter {
-        font-size: .72rem;
-        color: var(--accent2);
-        cursor: pointer;
         display: none;
         align-items: center;
-        gap: 4px;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px 16px;
+        border-radius: 16px;
+        background: var(--material-regular);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        border: 1px solid var(--separator);
     }
-
+    #cnfte-filter-bar.has-active-filter {
+        display: flex;
+    }
+    #cnfte-clear-filter {
+        display: none;
+    }
     #cnfte-clear-filter.show {
         display: inline-flex;
     }
 
-    /* ── Hero 副标题打字机效果：光标是紧跟在最后一个字符后面的独立 span，
-       不是贴在容器最右侧的 border（那样文字没写满一行时光标会离字很远）── */
-    .cnfte-typing-active {
-        white-space: pre-wrap;
-    }
-
+    /* ── Hero Typing Cursor ── */
+    .cnfte-typing-active { min-height: 1.8em; }
     .cnfte-cursor {
         display: inline-block;
         width: 2px;
-        height: 1em;
-        margin-left: 2px;
+        height: 1.05em;
+        margin-left: 3px;
+        vertical-align: -0.15em;
         background: var(--accent);
-        vertical-align: -0.1em;
-        animation: cnfteBlink .9s step-end infinite;
+        border-radius: 2px;
+        animation: cnfteBlink .9s steps(1) infinite;
     }
-
     @keyframes cnfteBlink {
-
-        0%,
-        100% {
-            opacity: 1;
-        }
-
-        50% {
-            opacity: 0;
-        }
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
     }
 
-    /* ── 鼠标粒子跟随画布 ── */
+    /* ── Subtle Particle Canvas ── */
     #cnfte-particles {
         position: fixed;
         inset: 0;
-        z-index: 9997;
         pointer-events: none;
+        z-index: 9990;
+        opacity: 0.65;
     }
 
-    /* ── 回到顶部 ── */
-    #cnfte-top-btn {
-        position: fixed;
-        right: 20px;
-        bottom: 20px;
-        z-index: 9000;
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        background: rgba(13, 15, 23, 0.85);
-        backdrop-filter: blur(10px) saturate(140%);
-        -webkit-backdrop-filter: blur(10px) saturate(140%);
-        border: 1px solid var(--border);
-        color: var(--accent);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(16px) scale(.82);
-        transition: opacity .3s var(--ease-out), transform .45s var(--ease-spring), visibility .3s, border-color .2s;
-        box-shadow: var(--shadow);
-    }
-
-    #cnfte-top-btn.show {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0) scale(1);
-    }
-
-    #cnfte-top-btn:hover {
-        transform: translateY(-4px) scale(1.05);
-        border-color: var(--accent);
-    }
-
-    #cnfte-top-btn:active {
-        transform: translateY(0) scale(.88);
-        transition: transform .15s var(--ease-press);
-    }
-
-    /* ── 设置按钮 + 面板（左下角）── */
+    /* ── Floating Liquid Glass Action Buttons (44x44 HIG Ergonomic Target) ── */
+    #cnfte-top-btn,
     #cnfte-settings-btn {
         position: fixed;
-        left: 20px;
-        bottom: 20px;
-        z-index: 9001;
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        background: rgba(13, 15, 23, 0.85);
-        backdrop-filter: blur(10px) saturate(140%);
-        -webkit-backdrop-filter: blur(10px) saturate(140%);
-        border: 1px solid var(--border);
-        color: var(--accent);
+        right: 22px;
+        width: 44px;
+        height: 44px;
+        border-radius: var(--r-pill);
+        background: var(--glass-surface);
+        backdrop-filter: blur(26px) saturate(195%);
+        -webkit-backdrop-filter: blur(26px) saturate(195%);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-rim), var(--glass-shadow);
+        color: var(--label-primary);
         font-size: 1.05rem;
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        box-shadow: var(--shadow);
-        transition: border-color .25s, transform .35s var(--ease-spring);
+        z-index: 3000;
+        transition: transform .3s var(--ease-spring), background .2s, border-color .2s, opacity .28s var(--ease-out), visibility .28s;
     }
-
-    #cnfte-settings-btn:hover {
-        border-color: var(--accent);
-        transform: scale(1.1);
+    #cnfte-settings-btn {
+        bottom: 24px;
     }
-
-    #cnfte-settings-btn:active {
-        transform: scale(.88);
-        transition: transform .15s var(--ease-press);
-    }
-
-    /* 设置面板的背景遮罩：之前完全没有，点开面板时背景毫无变化、
-       跟公告弹窗的体验不一致。补上同款的暗化+模糊。 */
-    #cnfte-settings-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 9000;
-        background: rgba(6, 6, 15, .38);
-        backdrop-filter: blur(6px) saturate(120%);
-        -webkit-backdrop-filter: blur(6px) saturate(120%);
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
-        transition: opacity .3s linear, visibility .3s;
-    }
-
-    #cnfte-settings-backdrop.open {
-        opacity: 1;
-        visibility: visible;
-        pointer-events: all;
-    }
-
-    #cnfte-settings-panel {
-        position: fixed;
-        left: 20px;
+    #cnfte-top-btn {
         bottom: 78px;
-        z-index: 9001;
-        width: 272px;
-        max-height: 72vh;
-        overflow-y: auto;
-        /* 跟公告框同一个问题：背后已经有 #cnfte-settings-backdrop 压暗一层，
-           面板自己不能再叠差不多深的暗色，否则相乘只会更黑。这里明显调淡，
-           并用 brightness 把模糊后的背景"提亮"出来。 */
-        background: rgba(13, 15, 23, 0.88);
-        backdrop-filter: blur(12px) saturate(140%);
-        -webkit-backdrop-filter: blur(12px) saturate(140%);
-        border: 1px solid var(--border);
-        border-radius: var(--r-md);
-        padding: 18px 18px 14px;
-        box-shadow: var(--shadow);
         opacity: 0;
         visibility: hidden;
-        /* 弹性物理轨迹弹窗动效 */
-        transform: translateY(24px) scale(0.92);
-        transition: opacity .3s var(--ease-out),
-                    transform .52s var(--ease-spring-soft),
-                    visibility .35s;
+        transform: translateY(12px) scale(0.9);
     }
-
-    #cnfte-settings-panel.open {
+    #cnfte-top-btn.show {
         opacity: 1;
         visibility: visible;
         transform: translateY(0) scale(1);
     }
+    #cnfte-top-btn:hover,
+    #cnfte-settings-btn:hover {
+        background: rgba(58, 58, 64, 0.72);
+        border-color: rgba(255, 255, 255, 0.28);
+        color: #fff;
+        transform: translateY(-2px) scale(1.05);
+    }
+    #cnfte-top-btn:active,
+    #cnfte-settings-btn:active {
+        transform: scale(0.92);
+    }
 
-    /* 移动端做成真正贴底部的 sheet：满宽、弹性滑入 */
+    /* ── HIG Settings Popover / Sheet ── */
+    #cnfte-settings-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 3400;
+        background: rgba(0, 0, 0, 0.32);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity .26s var(--ease-std), visibility .26s;
+    }
+    #cnfte-settings-backdrop.open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    #cnfte-settings-panel {
+        position: fixed;
+        right: 22px;
+        bottom: 80px;
+        width: min(320px, calc(100vw - 32px));
+        padding: 20px;
+        border-radius: var(--r-sheet);
+        background: var(--glass-surface-strong);
+        backdrop-filter: blur(36px) saturate(200%);
+        -webkit-backdrop-filter: blur(36px) saturate(200%);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-rim), 0 28px 68px rgba(0, 0, 0, 0.58);
+        z-index: 3500;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform-origin: bottom right;
+        transform: translateY(16px) scale(0.94);
+        transition: opacity .26s var(--ease-out), transform .38s var(--ease-sheet), visibility .26s;
+    }
+    #cnfte-settings-panel.open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+    }
+
     @media (max-width: 640px) {
         #cnfte-settings-panel {
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100%;
-            max-height: 78vh;
-            border-radius: var(--r-lg) var(--r-lg) 0 0;
-            border-bottom: none;
-            padding: 20px 20px calc(16px + env(safe-area-inset-bottom, 0px));
-            transform: translateY(100%);
-            transition: transform .52s var(--ease-sheet), opacity .3s var(--ease-out), visibility .35s;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            width: auto;
+            transform-origin: bottom center;
+            transform: translateY(28px) scale(0.97);
         }
-
         #cnfte-settings-panel.open {
-            transform: translateY(0);
+            transform: translateY(0) scale(1);
         }
     }
 
     #cnfte-settings-panel h3 {
-        font-size: .82rem;
-        color: var(--accent);
-        letter-spacing: .5px;
-        margin-bottom: 14px;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
+        font-family: var(--font-display);
+        font-size: 0.96rem;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+        color: var(--label-primary);
+        padding-bottom: 14px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--separator);
     }
+    #cnfte-settings-panel h3 .svg-icon { color: var(--accent); }
 
     .cs-row {
-        margin-bottom: 15px;
+        margin-bottom: 16px;
     }
+    .cs-row:last-child { margin-bottom: 0; }
 
-    .cs-row:last-child {
-        margin-bottom: 4px;
-    }
-
-    .cs-row>label.cs-label {
+    .cs-label,
+    .cs-row > label.cs-label {
         display: block;
-        font-size: .7rem;
-        color: rgba(255, 255, 255, .5);
-        margin-bottom: 7px;
-        letter-spacing: .3px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--label-secondary);
+        margin-bottom: 8px;
     }
 
+    /* Authentic iOS Segmented Control */
     .cs-seg {
         display: flex;
-        gap: 6px;
+        padding: 3px;
+        border-radius: 12px;
+        background: rgba(118, 118, 128, 0.24);
+        gap: 2px;
     }
-
     .cs-seg button {
         flex: 1;
-        padding: 7px 2px;
+        min-height: 34px;
+        padding: 6px 8px;
         border-radius: 9px;
-        border: 1px solid var(--border);
-        background: rgba(255, 255, 255, .04);
-        color: rgba(255, 255, 255, .58);
-        font-size: .68rem;
-        font-family: inherit;
-        cursor: pointer;
-        transition: border-color .2s, color .2s, background .2s, transform .35s var(--ease-spring);
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--label-secondary);
+        transition: background .22s var(--ease-std), color .2s, box-shadow .22s, transform .2s var(--ease-spring);
     }
-
     .cs-seg button:hover {
-        transform: translateY(-2px) scale(1.04);
-        border-color: var(--border-accent);
+        color: var(--label-primary);
     }
-
     .cs-seg button:active {
-        transform: scale(.92);
-        transition: transform .15s var(--ease-press);
+        transform: scale(0.96);
     }
-
     .cs-seg button.active {
-        border-color: var(--accent);
-        color: var(--accent);
-        background: rgba(255, 153, 204, .12);
-        font-weight: 700;
+        background: rgba(99, 99, 102, 0.72);
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), inset 0 0.5px 0 rgba(255, 255, 255, 0.18);
     }
 
     .cs-color-input {
-        width: 100%;
-        height: 32px;
-        border-radius: 8px;
-        border: 1px solid var(--border);
-        background: transparent;
+        -webkit-appearance: none;
+        appearance: none;
+        border: 1px solid var(--separator);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        padding: 3px;
         cursor: pointer;
-        padding: 2px;
     }
+    .cs-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+    .cs-color-input::-webkit-color-swatch { border: none; border-radius: 8px; }
 
     .cs-swatch-dot {
-        width: 20px;
-        height: 20px;
+        width: 26px;
+        height: 26px;
         border-radius: 50%;
         border: 2px solid transparent;
+        box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
         cursor: pointer;
-        padding: 0;
-        transition: transform .25s var(--ease-spring), border-color .2s;
+        transition: transform .25s var(--ease-spring), box-shadow .2s;
     }
-
-    .cs-swatch-dot:hover {
-        transform: scale(1.25);
-    }
-
+    .cs-swatch-dot:hover { transform: scale(1.14); }
     .cs-swatch-dot.active {
-        border-color: #fff;
-        transform: scale(1.15);
-        box-shadow: 0 0 8px rgba(255, 255, 255, .4);
+        transform: scale(1.12);
+        box-shadow: 0 0 0 2px #1c1c1e, 0 0 0 4px #fff;
     }
 
-    /* ── 文章封面缺省毛笔占位（没有 cover / 图池 / 随机图 API 时的兜底）── */
+    /* ── Default Post Cover Fallback ── */
     .post-cover-default {
         width: 100%;
         height: 100%;
+        min-height: 180px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2.4rem;
-        background: var(--grad2);
-        opacity: .85;
+        background:
+            radial-gradient(circle at 25% 25%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 60%),
+            radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent2) 22%, transparent), transparent 60%),
+            rgba(28, 28, 32, 0.9);
+        color: rgba(255, 255, 255, 0.35);
+        font-size: 2.2rem;
     }
 
-    /* ══════════ 音乐播放器 widget ══════════ */
+    /* ═══════════════════════════════════════════════════════════════════════
+       APPLE MUSIC / CONTROL CENTER NOW PLAYING WIDGET
+       ═══════════════════════════════════════════════════════════════════════ */
     .player-widget {
         position: relative;
-        overflow: hidden;
     }
 
     .player-list-toggle {
         position: absolute;
         top: 14px;
         right: 14px;
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        border: 1px solid var(--border);
-        background: var(--glass);
-        color: var(--dim);
+        width: 34px;
+        height: 34px;
+        border-radius: var(--r-pill);
+        background: var(--fill-tertiary);
+        color: var(--label-secondary);
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        transition: transform .45s var(--ease-spring), color .2s, border-color .2s;
+        transition: background .2s, color .2s, transform .25s var(--ease-spring);
     }
-
     .player-list-toggle:hover {
-        color: var(--text);
-        border-color: var(--border-accent);
+        background: var(--fill-primary);
+        color: #fff;
     }
-
-    .player-list-toggle:active {
-        transform: scale(.88);
-    }
-
+    .player-list-toggle:active { transform: scale(0.92); }
     .player-list-toggle svg {
-        transition: transform .35s var(--ease-spring);
+        transition: transform .32s var(--ease-spring);
         pointer-events: none;
     }
-
     .player-list-toggle.open svg {
         transform: rotate(180deg);
     }
 
     .player-track-info {
-        padding-right: 30px;
-        margin-bottom: 6px;
+        margin-bottom: 12px;
+        padding-right: 36px;
     }
-
     .player-track-title {
-        font-weight: 700;
-        font-size: .92rem;
+        font-family: var(--font-display);
+        font-size: 1rem;
+        font-weight: 650;
+        letter-spacing: -0.015em;
+        color: var(--label-primary);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
-
     .player-track-artist {
-        font-size: .74rem;
-        color: var(--dim);
+        font-size: 0.8rem;
+        color: var(--label-secondary);
+        margin-top: 2px;
+        min-height: 1.2em;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    /* 同步歌词滚动列表：整首歌词一次性渲染好、纵向排列，播放中只是让
-       .player-lyric-list 整体平滑滑动，把当前行滚到容器正中间并变色高亮，
-       上下相邻的几句始终留在视野里（提前露出下一句，不会毫无征兆地蹦出来）。 */
+    /* Apple Music Style Frosted Lyric Viewport */
     .player-lyric {
-        position: relative;
-        height: 128px;
+        height: 92px;
         overflow: hidden;
-        margin-bottom: 10px;
-        mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
-        -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 20%, #000 80%, transparent 100%);
+        position: relative;
+        margin-bottom: 14px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--separator-subtle);
+        -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
+        mask-image: linear-gradient(180deg, transparent 0%, #000 22%, #000 78%, transparent 100%);
     }
-
     .player-lyric-list {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        transition: transform .45s cubic-bezier(0.16, 1, 0.3, 1);
+        padding: 32px 12px;
+        transition: transform .42s var(--ease-out);
         will-change: transform;
     }
-
     .player-lyric-item {
-        padding: 3px 10px;
-        font-size: .7rem;
-        line-height: 1.4;
-        color: var(--dim);
-        opacity: .55;
         text-align: center;
-        white-space: normal;
-        overflow-wrap: break-word;
-        word-break: break-word;
-        transition: color .3s ease-out, opacity .3s ease-out, font-size .3s ease-out;
+        padding: 4px 0;
+        font-size: 0.78rem;
+        line-height: 1.45;
+        color: var(--label-tertiary);
+        transition: color .25s, transform .28s var(--ease-out), opacity .25s;
     }
-
     .player-lyric-item.active {
-        color: var(--accent);
-        opacity: .95;
-        font-size: .82rem;
+        color: #fff;
         font-weight: 600;
+        transform: scale(1.03);
     }
-
-    /* 原文 / 翻译拆成两块后各自的样式：翻译永远单独一行、比原文稍小更淡，
-       不参与父级的 font-size 动画（避免高亮时翻译文字跟着原文一起变大显得
-       过重），颜色继续跟随父级 .player-lyric-item 的 color 过渡即可。 */
-    .lyric-main {
-        display: block;
-    }
-
+    .lyric-main { display: block; }
     .lyric-trans {
         display: block;
-        font-size: .85em;
-        opacity: .8;
-        margin-top: 2px;
+        font-size: 0.72rem;
+        opacity: 0.75;
+        margin-top: 1px;
     }
 
+    /* Apple Music Scrub Bar */
     .player-progress-track {
         position: relative;
-        height: 5px;
-        border-radius: 99px;
-        background: var(--border);
+        height: 6px;
+        border-radius: var(--r-pill);
+        background: rgba(255, 255, 255, 0.14);
         cursor: pointer;
+        margin-bottom: 8px;
         touch-action: none;
     }
-
     .player-progress-fill {
         position: absolute;
-        inset: 0 auto 0 0;
+        left: 0;
+        top: 0;
+        bottom: 0;
         width: 0%;
-        border-radius: 99px;
-        background: var(--grad);
-        transition: width .12s linear;
+        border-radius: var(--r-pill);
+        background: var(--accent);
+        pointer-events: none;
     }
-
     .player-progress-thumb {
         position: absolute;
         top: 50%;
         left: 0%;
-        width: 11px;
-        height: 11px;
+        width: 12px;
+        height: 12px;
         border-radius: 50%;
-        background: var(--text);
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+        background: #fff;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
         transform: translate(-50%, -50%) scale(0);
-        transition: transform .3s linear;
+        transition: transform .22s var(--ease-spring);
+        pointer-events: none;
     }
-
     .player-progress-track:hover .player-progress-thumb,
     .player-progress-track.dragging .player-progress-thumb {
-        transform: translate(-50%, -50%) scale(1);
+        transform: translate(-50%, -50%) scale(1.1);
     }
 
     .player-time-row {
         display: flex;
         justify-content: space-between;
-        font-size: .66rem;
-        color: var(--dim);
-        margin-top: 6px;
+        font-size: 0.72rem;
         font-variant-numeric: tabular-nums;
+        color: var(--label-tertiary);
+        margin-bottom: 14px;
     }
 
+    /* HIG 44x44 Tactile Playback Controls */
     .player-controls {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 14px;
-        margin-top: 12px;
     }
 
     .player-btn {
         border: none;
         background: transparent;
-        color: var(--text);
-        font-size: .95rem;
-        width: 34px;
-        height: 34px;
+        color: var(--label-primary);
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: transform .35s var(--ease-spring), background .2s, color .2s;
+        transition: transform .28s var(--ease-spring), background .2s, color .2s;
     }
-
     .player-btn svg {
-        width: 17px;
-        height: 17px;
+        width: 18px;
+        height: 18px;
         display: block;
-        transition: transform .25s var(--ease-spring);
         pointer-events: none;
     }
     .player-btn svg * {
         pointer-events: none;
     }
-
     .player-btn:hover {
-        background: var(--glass);
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
     }
-
-    .player-btn:hover svg {
-        transform: scale(1.08);
-    }
-
     .player-btn:active {
-        transform: scale(.88);
+        transform: scale(0.88);
     }
 
+    /* Prominent Filled Play/Pause Button (HIG Accent Usage) */
     .player-btn-play {
-        width: 42px;
-        height: 42px;
-        font-size: 1.05rem;
-        background: var(--grad);
-        color: #0a0a12;
+        width: 46px;
+        height: 46px;
+        background: var(--accent);
+        color: #0b0b0e;
         position: relative;
+        box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 36%, transparent);
     }
-
     .player-btn-play svg {
-        width: 19px;
-        height: 19px;
+        width: 20px;
+        height: 20px;
     }
-
     .player-btn-play:hover {
-        background: var(--grad);
+        background: var(--accent);
+        color: #0b0b0e;
         filter: brightness(1.08);
         transform: scale(1.05);
     }
-
     .player-btn-play:active {
-        transform: scale(.92);
+        transform: scale(0.92);
     }
-
-    /* 缓冲不足時（比如刚切歌、或者弱网下加速也追不上播放速度导致卡顿）转圈提示，
-       状态直接来自 <audio> 的 waiting/playing 原生事件，不是自己算的假进度——
-       流式播放没有一个能准确代表"还要等多久"的百分比，只有"现在是不是在等" */
-    .player-btn-play.loading svg {
-        opacity: 0;
-    }
-
+    .player-btn-play.loading svg { opacity: 0; }
     .player-btn-play.loading::after {
         content: '';
         position: absolute;
         top: 50%;
         left: 50%;
-        width: 16px;
-        height: 16px;
-        margin: -8px 0 0 -8px;
+        width: 18px;
+        height: 18px;
+        margin: -9px 0 0 -9px;
         border-radius: 50%;
         border: 2px solid currentColor;
         border-top-color: transparent;
-        opacity: .8;
         animation: playerSpin .7s linear infinite;
     }
-
     @keyframes playerSpin {
         to { transform: rotate(360deg); }
     }
 
-    .player-btn-mode.mode-random {
+    .player-btn-mode.mode-random,
+    .player-btn-mode.mode-single {
         color: var(--accent);
         background: color-mix(in srgb, var(--accent) 16%, transparent);
     }
 
-    .player-btn-mode.mode-single {
-        color: var(--accent2);
-        background: color-mix(in srgb, var(--accent2) 16%, transparent);
-    }
-
-    /* 播放列表：只在播放器卡片内部展开（max-height 弹性动画），不是全局弹层 */
+    /* Expandable Playlist */
     .player-playlist {
         max-height: 0;
         overflow: hidden;
-        transition: max-height .45s var(--ease-out), margin-top .45s var(--ease-out);
         margin-top: 0;
+        transition: max-height .42s var(--ease-out), margin-top .35s var(--ease-out);
     }
-
     .player-playlist.open {
-        max-height: 260px;
+        max-height: 240px;
         overflow-y: auto;
         margin-top: 14px;
-        /* 给滚动条留一点内缩空间，不贴着卡片圆角内壁走 */
-        padding-right: 4px;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 153, 204, .3) transparent;
+        padding-top: 10px;
+        border-top: 1px solid var(--separator);
     }
-
-    /* 之前没写 ::-webkit-scrollbar，Chrome/Safari/移动端浏览器会退回系统
-       默认的浅色宽滚动条，在深色毛玻璃背景上就是一根很突兀的"大白条"。 */
-    .player-playlist.open::-webkit-scrollbar {
-        width: 4px;
-    }
-
-    .player-playlist.open::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
+    .player-playlist.open::-webkit-scrollbar { width: 5px; }
+    .player-playlist.open::-webkit-scrollbar-track { background: transparent; }
     .player-playlist.open::-webkit-scrollbar-thumb {
-        background: rgba(255, 153, 204, .3);
-        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.22);
+        border-radius: var(--r-pill);
     }
-
     .player-playlist-item {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        gap: 8px;
-        padding: 7px 8px;
-        border-radius: 8px;
-        font-size: .76rem;
+        gap: 10px;
+        padding: 9px 11px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        color: var(--label-secondary);
         cursor: pointer;
-        color: var(--dim);
-        transition: background .2s, color .2s, transform .3s var(--ease-spring);
+        transition: background .18s, color .18s;
     }
-
     .player-playlist-item:hover {
-        background: var(--glass);
-        color: var(--text);
-        transform: translateX(2px);
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
     }
-
     .player-playlist-item.active {
+        background: color-mix(in srgb, var(--accent) 18%, transparent);
         color: var(--accent);
-        font-weight: 700;
+        font-weight: 600;
     }
-
+    .player-playlist-item .pli-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
     .player-playlist-item .pli-artist {
-        color: var(--dim);
-        font-weight: 400;
+        font-size: 0.72rem;
+        color: var(--label-tertiary);
         flex-shrink: 0;
+        max-width: 96px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
-
     .player-empty-hint {
-        font-size: .72rem;
-        color: var(--dim);
         text-align: center;
-        padding: 6px 0;
+        padding: 14px;
+        font-size: 0.8rem;
+        color: var(--label-tertiary);
     }
 
-    /* ══════════ 通用滚动进场动效（侧滑 / 弹出） ══════════
-       data-cnfte-reveal="left|right|pop" 标记元素，IntersectionObserver 进入视口后
-       加上 .cnfte-revealed 触发过渡；data-cnfte-reveal-repeat="1" 的元素（目前只有
-       页脚）每次离开/重新进入视口都会撤销/重放，不是只触发一次就"懒处理"掉。 */
+    /* ── Subtle HIG Scroll Reveal ── */
     [data-cnfte-reveal] {
         opacity: 0;
-        transition: opacity .5s cubic-bezier(0.16, 1, 0.3, 1),
-                    transform .65s var(--ease-spring),
-                    filter .4s cubic-bezier(0.16, 1, 0.3, 1);
-        will-change: transform, opacity;
+        transform: translateY(14px);
+        transition: opacity .52s var(--ease-out), transform .58s var(--ease-out);
+        will-change: opacity, transform;
     }
-
-    [data-cnfte-reveal="left"] {
-        transform: translateX(-56px);
-    }
-
-    [data-cnfte-reveal="right"] {
-        transform: translateX(56px);
-    }
-
-    [data-cnfte-reveal="pop"] {
-        transform: translateY(32px) scale(.88);
-        filter: blur(2px);
-    }
-
-    [data-cnfte-reveal="up"] {
-        transform: translateY(40px);
-    }
-
+    [data-cnfte-reveal="left"] { transform: translateY(16px); }
+    [data-cnfte-reveal="right"] { transform: translateY(14px); }
+    [data-cnfte-reveal="pop"] { transform: scale(0.98) translateY(10px); }
+    [data-cnfte-reveal="up"] { transform: translateY(18px); }
     [data-cnfte-reveal].cnfte-revealed {
         opacity: 1;
         transform: translate(0, 0) scale(1);
-        filter: blur(0);
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -928,7 +786,15 @@
             transition: none !important;
             opacity: 1 !important;
             transform: none !important;
-            filter: none !important;
+        }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+        #cnfte-top-btn, #cnfte-settings-btn, #cnfte-settings-panel,
+        .cnfte-page-btn, #cnfte-filter-bar {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            background: #1c1c1e !important;
         }
     }
 
@@ -939,10 +805,7 @@
         display: inline-block;
         flex-shrink: 0;
     }
-    .svg-icon[fill="none"] {
-        stroke: currentColor;
-    }
-    
+    .svg-icon[fill="none"] { stroke: currentColor; }
 </style>
 
 
