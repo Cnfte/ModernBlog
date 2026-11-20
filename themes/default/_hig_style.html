@@ -4,6 +4,7 @@
        Liquid Glass Controls · Standard Content Materials · SF Typography
        ═══════════════════════════════════════════════════════════════════════ */
     :root {
+        color-scheme: dark;
         /* ── Typography (HIG San Francisco / PingFang Optical Stack) ── */
         --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
         --font-text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", system-ui, sans-serif;
@@ -472,6 +473,30 @@
         flex-direction: column;
         gap: 4px;
         overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    }
+
+    .nav-menu-links::-webkit-scrollbar,
+    .toc-widget::-webkit-scrollbar,
+    #search-dropdown::-webkit-scrollbar,
+    .notice-box::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+    }
+    .nav-menu-links::-webkit-scrollbar-track,
+    .toc-widget::-webkit-scrollbar-track,
+    #search-dropdown::-webkit-scrollbar-track,
+    .notice-box::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .nav-menu-links::-webkit-scrollbar-thumb,
+    .toc-widget::-webkit-scrollbar-thumb,
+    #search-dropdown::-webkit-scrollbar-thumb,
+    .notice-box::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.22);
+        border-radius: 999px;
     }
 
     .nav-menu-links a {
@@ -483,12 +508,14 @@
         font-size: 0.95rem;
         font-weight: 500;
         min-height: 44px;
-        transition: background .18s var(--ease-std), color .18s, transform .25s var(--ease-spring);
+        transition: background .18s var(--ease-std), color .18s;
     }
     .nav-menu-links a:hover {
-        background: rgba(255, 255, 255, 0.10);
+        background: rgba(255, 255, 255, 0.11);
         color: #fff;
-        transform: translateX(3px);
+    }
+    .nav-menu-links a:active {
+        background: rgba(255, 255, 255, 0.16);
     }
 
     /* ═══════════════════════════════════════════════════════════════════════
@@ -614,12 +641,12 @@
     .hero {
         position: relative;
         width: 100%;
-        min-height: 76dvh;
+        min-height: 100dvh;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 112px 24px 80px;
+        padding: 108px 24px 88px;
         overflow: hidden;
     }
 
@@ -1500,8 +1527,8 @@
             width: 150px;
         }
         .hero {
-            min-height: 68dvh;
-            padding: 96px 18px 68px;
+            min-height: 100dvh;
+            padding: 96px 18px 72px;
         }
         .hero-avatar {
             width: 98px;
