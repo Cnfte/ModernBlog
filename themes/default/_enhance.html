@@ -468,10 +468,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background:
-            radial-gradient(circle at 25% 25%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 60%),
-            radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--accent2) 22%, transparent), transparent 60%),
-            rgba(28, 28, 32, 0.9);
+        background: rgba(36, 36, 40, 0.92);
         color: rgba(255, 255, 255, 0.35);
         font-size: 2.2rem;
     }
@@ -980,8 +977,8 @@
             root.style.setProperty('--accent', hex);
             root.style.setProperty('--accent2', shiftHue(hex, 30));
             root.style.setProperty('--accent3', shiftHue(hex, 200));
-            root.style.setProperty('--grad', `linear-gradient(135deg, ${hex} 0%, ${shiftHue(hex, 30)} 100%)`);
-            root.style.setProperty('--grad2', `linear-gradient(135deg, ${shiftHue(hex, 200)} 0%, ${shiftHue(hex, 260)} 100%)`);
+            root.style.setProperty('--grad', hex);
+            root.style.setProperty('--grad2', hex);
             root.style.setProperty('--border-accent', hex + '73');
         }
 

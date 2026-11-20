@@ -41,16 +41,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            background:
-                radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
-                radial-gradient(circle at 75% 75%, color-mix(in srgb, var(--accent2) 18%, transparent), transparent 55%);
-            z-index: -1;
-        }
-
         .wrap {
             width: min(460px, 100%);
             padding: 40px 32px 36px;

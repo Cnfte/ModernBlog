@@ -11,12 +11,12 @@
         --font-heading: var(--font-display);
         --mono: "SF Mono", ui-monospace, "Fira Code", Menlo, Monaco, Consolas, monospace;
 
-        /* ── Dynamic Accent (driven by config.theme_color & live color picker) ── */
+        /* ── Dynamic Accent (solid flat accent, zero gradients) ── */
         --accent: {{ theme_colors.accent }};
         --accent2: {{ theme_colors.accent2 }};
         --accent3: {{ theme_colors.accent3 }};
-        --grad: {{ theme_colors.grad }};
-        --grad2: {{ theme_colors.grad2 }};
+        --grad: var(--accent);
+        --grad2: var(--accent);
         --border-accent: {{ theme_colors.border_accent }};
 
         /* ── HIG Dark Appearance Semantic Colors ── */
@@ -169,10 +169,9 @@
         position: fixed;
         inset: 0;
         z-index: -1;
-        background:
-            radial-gradient(ellipse 80% 60% at 50% 0%, rgba(16, 16, 22, 0.28) 0%, rgba(11, 11, 14, 0.78) 100%);
-        backdrop-filter: blur(22px) saturate(150%);
-        -webkit-backdrop-filter: blur(22px) saturate(150%);
+        background: rgba(11, 11, 14, 0.56);
+        backdrop-filter: blur(22px) saturate(140%);
+        -webkit-backdrop-filter: blur(22px) saturate(140%);
     }
 
     /* ── Top Reading / SPA Progress Bar ── */
@@ -665,12 +664,7 @@
         position: absolute;
         inset: 0;
         z-index: 1;
-        background:
-            linear-gradient(180deg,
-                rgba(11, 11, 14, 0.36) 0%,
-                rgba(11, 11, 14, 0.22) 42%,
-                rgba(11, 11, 14, 0.72) 82%,
-                rgba(11, 11, 14, 0.96) 100%);
+        background: rgba(11, 11, 14, 0.42);
     }
 
     .hero-intro-layout {
@@ -835,11 +829,7 @@
         position: absolute;
         inset: 0;
         z-index: 1;
-        background:
-            linear-gradient(180deg,
-                rgba(11, 11, 14, 0.34) 0%,
-                rgba(11, 11, 14, 0.42) 45%,
-                rgba(11, 11, 14, 0.94) 100%);
+        background: rgba(11, 11, 14, 0.48);
     }
 
     .post-header-content {
@@ -941,7 +931,7 @@
     .post-cover-overlay {
         position: absolute;
         inset: 0;
-        background: linear-gradient(90deg, transparent 60%, rgba(28, 28, 30, 0.18) 100%);
+        background: transparent;
         pointer-events: none;
     }
 
