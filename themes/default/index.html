@@ -234,8 +234,10 @@
 
     <div id="main-grid" class="layout-wrapper">
 
-        {# ── Zone 1: 概览区（GitHub 贡献热力图 + 站点核心指标，与下方双栏精确对齐） ── #}
-        <section class="overview-bento" aria-label="站点概览与活跃度">
+        {# ── Zone 1: 概览区（GitHub 贡献热力图可开关 + 站点核心指标，与下方双栏精确对齐） ── #}
+        {% set show_heatmap = config.enable_heatmap | default(true) %}
+        <section class="overview-bento{% if not show_heatmap %} heatmap-off{% endif %}" aria-label="站点概览与活跃度">
+            {% if show_heatmap %}
             <div class="bento-card heatmap-card" id="cnfte-gh-heatmap" data-gh-user="{{ gh_user }}" data-cnfte-reveal="up">
                 <div class="heatmap-head">
                     <div class="heatmap-title-wrap">
@@ -263,6 +265,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
 
             <div class="bento-card stats-bento-card" data-cnfte-reveal="up" style="transition-delay:0.06s">
                 <div class="stats-grid-2x2">

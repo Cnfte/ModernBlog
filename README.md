@@ -95,7 +95,7 @@ python main.py
 
 ```
 =======================================================
-  INDEX // MOE_SYSTEM v8.0
+  ModernBlog Admin WebUI
   Flask WebUI Edition
   访问地址: http://0.0.0.0:32323
   本机访问: http://127.0.0.1:32323

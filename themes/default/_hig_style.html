@@ -886,6 +886,12 @@
         gap: 22px;
         align-items: stretch;
     }
+    .overview-bento.heatmap-off {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .overview-bento.heatmap-off .stats-grid-2x2 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
 
     .bento-card {
         background: rgba(28, 28, 32, 0.78);
