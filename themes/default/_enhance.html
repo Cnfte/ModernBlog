@@ -2154,6 +2154,68 @@
                 });
         }
 
+        // ══════════ 文章正文增强（GFM 提示框 + 独立链接/附件卡片） ══════════
+        function enhancePostBody() {
+            const body = document.querySelector('.post-body');
+            if (!body || body.dataset.enhanced) return;
+            body.dataset.enhanced = '1';
+
+            // 1. GFM 提示框 (> [!NOTE] / [!TIP] / [!IMPORTANT] / [!WARNING] / [!CAUTION])
+            const alertMeta = {
+                NOTE: { cls: 'callout-note', label: '提示', icon: '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>' },
+                TIP: { cls: 'callout-tip', label: '技巧', icon: '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>' },
+                IMPORTANT: { cls: 'callout-important', label: '重要', icon: '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' },
+                WARNING: { cls: 'callout-warning', label: '警告', icon: '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>' },
+                CAUTION: { cls: 'callout-caution', label: '注意', icon: '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' }
+            };
+            body.querySelectorAll('blockquote').forEach(bq => {
+                const firstP = bq.querySelector('p');
+                if (!firstP) return;
+                const m = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(?:\n|<br\s*\/?>)?/i.exec(firstP.innerHTML);
+                if (!m) return;
+                const key = m[1].toUpperCase();
+                const cfg = alertMeta[key] || alertMeta.NOTE;
+                firstP.innerHTML = firstP.innerHTML.slice(m[0].length);
+                if (!firstP.textContent.trim() && !firstP.querySelector('*')) firstP.remove();
+                const wrap = document.createElement('div');
+                wrap.className = `post-callout ${cfg.cls}`;
+                const title = document.createElement('div');
+                title.className = 'pc-title';
+                title.innerHTML = `${cfg.icon}<span>${cfg.label}</span>`;
+                wrap.appendChild(title);
+                while (bq.firstChild) wrap.appendChild(bq.firstChild);
+                bq.replaceWith(wrap);
+            });
+
+            // 2. 独立行链接 / 附件下载自动升级为风格化卡片
+            body.querySelectorAll('p').forEach(p => {
+                if (p.children.length !== 1 || p.firstElementChild.tagName !== 'A') return;
+                if (p.textContent.trim() !== p.firstElementChild.textContent.trim()) return;
+                const a = p.firstElementChild;
+                const href = a.getAttribute('href') || '';
+                if (!href || href.startsWith('#')) return;
+                const rawText = a.textContent.trim();
+                const isAttachment = /^附件[:：]/.test(rawText) || /\.(zip|rar|7z|tar|gz|pdf|apk|exe|dmg|docx?|xlsx?|pptx?)$/i.test(href);
+                const label = rawText.replace(/^附件[:：]\s*/, '');
+                let meta = href;
+                try {
+                    const u = new URL(href, location.origin);
+                    meta = u.origin === location.origin ? u.pathname : (u.hostname + (u.pathname === '/' ? '' : u.pathname));
+                } catch (_) { }
+                a.className = 'post-link-card';
+                if (isAttachment) a.setAttribute('download', '');
+                else if (/^https?:\/\//i.test(href)) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+                const iconSvg = isAttachment
+                    ? '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
+                    : '<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+                const arrowSvg = '<svg class="svg-icon plc-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
+                a.innerHTML = `<span class="plc-icon">${iconSvg}</span><span class="plc-info"><span class="plc-title"></span><span class="plc-meta"></span></span>${arrowSvg}`;
+                a.querySelector('.plc-title').textContent = label || href;
+                a.querySelector('.plc-meta').textContent = meta;
+                p.replaceWith(a);
+            });
+        }
+
         // ── 首次初始化（每个功能独立 try/catch，避免其中一个异常导致后面的
         //    全部不执行——例如某些环境下 canvas/IntersectionObserver 不可用）──
         function safeRun(fn) {
@@ -2175,6 +2237,7 @@
         safeRun(initArchiveFilters);
         safeRun(registerAudioAccelSW);
         safeRun(bindMusicPlayer);
+        safeRun(enhancePostBody);
         safeRun(bindScrollReveal);
         cnfteIdle(() => { safeRun(initGithubHeatmap); safeRun(initParticles); safeRun(initHeroTyping); }, { timeout: 800 });
 
@@ -2206,6 +2269,7 @@
                 safeRun(initTagsHubView);
                 safeRun(initArchiveFilters);
                 safeRun(bindMusicPlayer);
+                safeRun(enhancePostBody);
                 safeRun(bindScrollReveal);
                 cnfteIdle(() => { safeRun(initGithubHeatmap); safeRun(initHeroTyping); }, { timeout: 500 });
             }, 40);

@@ -1319,12 +1319,203 @@
 
     .post-body a {
         color: var(--accent);
-        text-decoration: underline;
-        text-decoration-color: color-mix(in srgb, var(--accent) 45%, transparent);
-        text-underline-offset: 3px;
+        text-decoration: none;
+        padding: 1px 4px;
+        margin: 0 -2px;
+        border-radius: 6px;
+        border-bottom: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+        transition: background-color .18s var(--ease-std), border-color .18s var(--ease-std), color .18s;
     }
     .post-body a:hover {
-        text-decoration-color: var(--accent);
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        border-bottom-color: var(--accent);
+    }
+
+    /* 独立行链接 / 附件下载卡片（Apple HIG Grouped Pill Card） */
+    .post-body a.post-link-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 1.2em 0;
+        padding: 13px 16px;
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--separator);
+        color: var(--label-primary);
+        text-decoration: none;
+        transition: transform .28s var(--ease-spring), background-color .2s, border-color .2s;
+    }
+    .post-body a.post-link-card:hover {
+        background: rgba(255, 255, 255, 0.09);
+        border-color: color-mix(in srgb, var(--accent) 55%, rgba(255,255,255,0.16));
+        transform: translateY(-2px);
+    }
+    .post-link-card .plc-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: color-mix(in srgb, var(--accent) 16%, transparent);
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .post-link-card .plc-info {
+        flex: 1;
+        min-width: 0;
+    }
+    .post-link-card .plc-title {
+        display: block;
+        font-size: 0.94rem;
+        font-weight: 600;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .post-link-card .plc-meta {
+        display: block;
+        font-size: 0.76rem;
+        color: var(--label-tertiary);
+        font-family: var(--mono);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 2px;
+    }
+    .post-link-card .plc-arrow {
+        color: var(--label-tertiary);
+        flex-shrink: 0;
+        transition: transform .22s var(--ease-spring), color .2s;
+    }
+    .post-link-card:hover .plc-arrow {
+        color: var(--accent);
+        transform: translateX(3px);
+    }
+
+    /* GFM 提示框（NOTE / TIP / IMPORTANT / WARNING / CAUTION） */
+    .post-body .post-callout {
+        margin: 1.4em 0;
+        padding: 15px 18px;
+        border-radius: 15px;
+        border: 1px solid var(--separator);
+        border-left: 3.5px solid var(--callout-c, var(--accent));
+        background: color-mix(in srgb, var(--callout-c, var(--accent)) 10%, rgba(255,255,255,0.03));
+        color: var(--label-primary);
+    }
+    .post-body .post-callout .pc-title {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--callout-c, var(--accent));
+        margin-bottom: 6px;
+        letter-spacing: 0.02em;
+    }
+    .post-body .post-callout p:last-child { margin-bottom: 0; }
+    .post-body .callout-note { --callout-c: #60a5fa; }
+    .post-body .callout-tip { --callout-c: #34d399; }
+    .post-body .callout-important { --callout-c: #a78bfa; }
+    .post-body .callout-warning { --callout-c: #fbbf24; }
+    .post-body .callout-caution { --callout-c: #fb7185; }
+
+    /* 折叠面板（Apple HIG Grouped Disclosure Card） */
+    .post-body details {
+        margin: 1.4em 0;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid var(--separator);
+        overflow: hidden;
+        transition: border-color .2s, background-color .2s;
+    }
+    .post-body details[open] {
+        border-color: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.055);
+    }
+    .post-body details > summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 13px 18px;
+        min-height: 46px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #fff;
+        user-select: none;
+        transition: background-color .18s;
+    }
+    .post-body details > summary::-webkit-details-marker { display: none; }
+    .post-body details > summary:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+    .post-body details > summary::after {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-right: 2px solid var(--label-secondary);
+        border-bottom: 2px solid var(--label-secondary);
+        transform: rotate(-45deg);
+        transition: transform .25s var(--ease-spring), border-color .2s;
+        flex-shrink: 0;
+    }
+    .post-body details[open] > summary {
+        border-bottom: 1px solid var(--separator);
+    }
+    .post-body details[open] > summary::after {
+        transform: rotate(45deg);
+        border-color: var(--accent);
+    }
+    .post-body details > :not(summary) {
+        padding-inline: 18px;
+    }
+    .post-body details > :nth-child(2) {
+        padding-top: 14px;
+    }
+    .post-body details > :last-child:not(summary) {
+        padding-bottom: 14px;
+        margin-bottom: 0;
+    }
+
+    /* 媒体播放器（video / audio / iframe 统一圆角暗色封装） */
+    .post-body video,
+    .post-body iframe {
+        display: block;
+        width: 100%;
+        max-height: 70dvh;
+        margin: 1.5em auto;
+        border-radius: 16px;
+        border: 1px solid var(--separator);
+        background: #08080b;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
+    }
+    .post-body iframe {
+        aspect-ratio: 16 / 9;
+        height: auto;
+    }
+    .post-body audio {
+        display: block;
+        width: 100%;
+        height: 46px;
+        margin: 1.4em 0;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid var(--separator);
+        padding: 4px 10px;
+        color-scheme: dark;
+    }
+
+    /* 待办清单复选框 */
+    .post-body input[type="checkbox"] {
+        accent-color: var(--accent);
+        width: 15px;
+        height: 15px;
+        margin-right: 6px;
+        vertical-align: -2px;
     }
 
     .post-body ul,
@@ -1370,11 +1561,18 @@
         color: #e5e5ea;
     }
 
+    /* 图片自适应容器并限制最大舒适观感高度（宽图铺满、竖图不撑爆屏幕） */
     .post-body img {
-        margin: 1.4em auto;
-        border-radius: 14px;
-        border: 1px solid var(--separator-subtle);
-        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.30);
+        display: block;
+        max-width: 100%;
+        width: auto;
+        max-height: min(68dvh, 620px);
+        height: auto;
+        object-fit: contain;
+        margin: 1.6em auto;
+        border-radius: 16px;
+        border: 1px solid var(--separator);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
     }
 
     .post-body hr {
