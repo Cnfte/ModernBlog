@@ -299,6 +299,10 @@ def build():
             n = _am.copy_audio_files_to_build(BASE_DIR, OUTPUT_DIR)
             if n:
                 print(f"[INFO] 已复制 {n} 个音频文件到 public/audio/files/")
+            audio_dir = os.path.join(OUTPUT_DIR, 'audio')
+            os.makedirs(audio_dir, exist_ok=True)
+            with open(os.path.join(audio_dir, 'tracks.json'), 'w', encoding='utf-8') as tf:
+                json.dump(audio_tracks, tf, ensure_ascii=False, separators=(',', ':'))
         except Exception as e:
             print(f"[WARN] 音频库导出失败，播放器将不显示任何歌曲: {e}")
             audio_tracks = []

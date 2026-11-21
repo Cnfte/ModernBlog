@@ -767,6 +767,8 @@
         opacity: 0;
         transform: translateY(14px);
         transition: opacity .52s var(--ease-out), transform .58s var(--ease-out);
+    }
+    [data-cnfte-reveal]:not(.cnfte-revealed) {
         will-change: opacity, transform;
     }
     [data-cnfte-reveal="left"] { transform: translateY(16px); }
@@ -776,6 +778,7 @@
     [data-cnfte-reveal].cnfte-revealed {
         opacity: 1;
         transform: translate(0, 0) scale(1);
+        will-change: auto;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -867,8 +870,8 @@
         playerEnabled: {{ 'true' if config.enable_player | default(false) else 'false' }},
         playerDefaultMode: {{ (config.player_default_mode | default('order')) | tojson }}
     };
-    // 音轨 + 歌词数据在构建期就已经准备好（纯静态，不依赖任何运行时接口）
-    window.__cnftePlayerTracks = {{ (audio_tracks | default([])) | tojson }};
+    // 音轨 + 歌词数据已独立输出到静态 /audio/tracks.json，避免把 55KB+ 歌词内联到每个 HTML 页面
+    window.__cnftePlayerTracks = window.__cnftePlayerTracks || null;
 </script>
 {% if config.enable_player %}
 <!-- 播放器的 <audio> 元素必须放在 SPA 局部替换范围（nav/hero-wrap/main-grid/footer）之外，
@@ -1159,53 +1162,68 @@
         }
 
         // ══════════ 通用滚动进场（侧滑 / 弹出） ══════════
-        // 每个元素只建一次 IntersectionObserver（用 dataset.revealBound 防重复绑定），
-        // SPA 换页后新出现的卡片/页脚会是全新节点，自然会被下一次调用重新选中绑定。
+        // 全局复用单个 IntersectionObserver 实例（替代为每个元素各建一个观察者），
+        // 动效完全一致，大幅降低移动端滚动时的内存与回调开销。
+        let sharedRevealIO = null;
+        function getRevealObserver() {
+            if (sharedRevealIO) return sharedRevealIO;
+            sharedRevealIO = new IntersectionObserver((entries) => {
+                for (let i = 0; i < entries.length; i++) {
+                    const entry = entries[i];
+                    const el = entry.target;
+                    const repeat = el.dataset.cnfteRevealRepeat === '1';
+                    if (entry.intersectionRatio >= 0.15) {
+                        el.classList.add('cnfte-revealed');
+                        if (!repeat) sharedRevealIO.unobserve(el);
+                    } else if (repeat) {
+                        el.classList.remove('cnfte-revealed');
+                    }
+                }
+            }, { threshold: [0, 0.15, 0.3] });
+            return sharedRevealIO;
+        }
         function bindScrollReveal() {
+            const io = getRevealObserver();
             document.querySelectorAll('[data-cnfte-reveal]:not([data-reveal-bound])').forEach(el => {
                 el.dataset.revealBound = '1';
-                const repeat = el.dataset.cnfteRevealRepeat === '1';
-                // 之前只注册了单个 threshold(0.15)：ratio 从 1 掉到 0.15 以下时确实会
-                // 触发一次回调，但那一刻 intersectionRatio 仍然 > 0，isIntersecting 依旧
-                // 是 true，于是"离场"分支永远不会走到——这就是"淡入正常、淡出没反应"的
-                // 根因。这里改成显式比较 intersectionRatio，并把 0 也纳入注册的
-                // threshold，保证元素完全离开视口那一刻一定还会再收到一次回调。
-                const io = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.intersectionRatio >= 0.15) {
-                            el.classList.add('cnfte-revealed');
-                            if (!repeat) io.unobserve(el);
-                        } else if (repeat) {
-                            el.classList.remove('cnfte-revealed');
-                        }
-                    });
-                }, { threshold: [0, 0.15, 0.3] });
                 io.observe(el);
             });
         }
 
-        // ── 回到顶部 ──
+        // ── 回到顶部（rAF 节流） ──
         function bindBackToTop() {
             const btn = document.getElementById('cnfte-top-btn');
             if (!btn || btn._bound) return;
             btn._bound = true;
+            let ticking = false;
             window.addEventListener('scroll', () => {
-                btn.classList.toggle('show', (window.scrollY || document.documentElement.scrollTop) > 420);
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(() => {
+                    btn.classList.toggle('show', (window.scrollY || document.documentElement.scrollTop) > 420);
+                    ticking = false;
+                });
             }, { passive: true });
             btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
         }
 
-        // ── 顶栏磨砂状态：刚到顶部时更透一点，滚动一段距离后加深 + 加投影，
-        //    拉开跟正文的层次（nav 是持续存在的节点，SPA 换页不会重建它，
-        //    所以跟 bindBackToTop 一样用 _bound 防重复绑定即可）──
+        // ── 顶栏磨砂状态（rAF 节流） ──
         function bindNavScrollState() {
             const nav = document.querySelector('nav');
             if (!nav || nav._scrollStateBound) return;
             nav._scrollStateBound = true;
+            let ticking = false;
             const apply = () => {
-                nav.classList.toggle('cnfte-nav-scrolled', (window.scrollY || document.documentElement.scrollTop) > 8);
+                const scrolled = (window.scrollY || document.documentElement.scrollTop) > 8;
+                nav.classList.toggle('scrolled', scrolled);
+                nav.classList.toggle('cnfte-nav-scrolled', scrolled);
+                ticking = false;
             };
-            window.addEventListener('scroll', apply, { passive: true });
+            window.addEventListener('scroll', () => {
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(apply);
+            }, { passive: true });
             apply();
         }
 
@@ -1268,21 +1286,51 @@
             });
         }
 
-        // ── 鼠标粒子跟随 ──
+        // ── 鼠标粒子跟随（移动端触屏跳过 + 桌面端按需 rAF + 颜色缓存） ──
         function initParticles() {
             const canvas = document.getElementById('cnfte-particles');
             if (!canvas || canvas._inited) return;
             canvas._inited = true;
+            const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const isTouchOnly = window.matchMedia && window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+            if (reduceMotion || isTouchOnly) { canvas.style.display = 'none'; return; }
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
-            let w, h, particles = [];
-            const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            if (reduceMotion) { canvas.style.display = 'none'; return; }
+            let w, h, particles = [], rafId = null;
+            let cachedRgb = { r: 255, g: 153, b: 204 };
+            let lastColorCheck = 0;
+            function refreshColor() {
+                const now = Date.now();
+                if (now - lastColorCheck < 500) return;
+                lastColorCheck = now;
+                const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || DEFAULT_COLOR;
+                cachedRgb = hexToRgb(color.length === 7 ? color : DEFAULT_COLOR) || cachedRgb;
+            }
             function resize() { w = canvas.width = innerWidth; h = canvas.height = innerHeight; }
             resize();
-            window.addEventListener('resize', resize);
+            window.addEventListener('resize', resize, { passive: true });
             let last = 0;
+            function tick() {
+                ctx.clearRect(0, 0, w, h);
+                if (!particles.length) { rafId = null; return; }
+                refreshColor();
+                const fill = `rgb(${cachedRgb.r},${cachedRgb.g},${cachedRgb.b})`;
+                ctx.fillStyle = fill;
+                let alive = 0;
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.01; p.life -= 0.022;
+                    if (p.life <= 0) continue;
+                    ctx.globalAlpha = p.life * .8;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+                    particles[alive++] = p;
+                }
+                particles.length = alive;
+                ctx.globalAlpha = 1;
+                rafId = alive > 0 ? requestAnimationFrame(tick) : null;
+            }
             window.addEventListener('pointermove', e => {
+                if (e.pointerType === 'touch') return;
                 const now = Date.now();
                 if (now - last < 16) return;
                 last = now;
@@ -1294,23 +1342,8 @@
                     });
                 }
                 if (particles.length > 140) particles.splice(0, particles.length - 140);
+                if (!rafId) rafId = requestAnimationFrame(tick);
             }, { passive: true });
-            function tick() {
-                ctx.clearRect(0, 0, w, h);
-                const color = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#ff99cc';
-                const rgb = hexToRgb(color.length === 7 ? color : DEFAULT_COLOR) || { r: 255, g: 153, b: 204 };
-                for (const p of particles) {
-                    p.x += p.vx; p.y += p.vy; p.vy += 0.01; p.life -= 0.022;
-                    if (p.life <= 0) continue;
-                    ctx.globalAlpha = Math.max(p.life, 0) * .8;
-                    ctx.fillStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
-                }
-                ctx.globalAlpha = 1;
-                particles = particles.filter(p => p.life > 0);
-                requestAnimationFrame(tick);
-            }
-            tick();
         }
 
         // ── 归档 / 分类 / 标签 筛选 + 分页（仅首页存在 .post-card 时生效） ──
@@ -1881,6 +1914,26 @@
             }
         }
 
+        let tracksLoadPromise = null;
+        function ensurePlayerTracks() {
+            if (Array.isArray(window.__cnftePlayerTracks)) {
+                return Promise.resolve(window.__cnftePlayerTracks);
+            }
+            if (!tracksLoadPromise) {
+                tracksLoadPromise = fetch('/audio/tracks.json', { cache: 'default' })
+                    .then(r => r.ok ? r.json() : [])
+                    .then(list => {
+                        window.__cnftePlayerTracks = Array.isArray(list) ? list : [];
+                        return window.__cnftePlayerTracks;
+                    })
+                    .catch(() => {
+                        window.__cnftePlayerTracks = [];
+                        return [];
+                    });
+            }
+            return tracksLoadPromise;
+        }
+
         function bindMusicPlayer() {
             if (!window.__cnfteConfig || !window.__cnfteConfig.playerEnabled) return;
             const audioEl = document.getElementById('cnfte-audio');
@@ -1888,12 +1941,22 @@
             cnftePlayer.audioEl = audioEl;
             if (!audioEl.dataset.bound) {
                 audioEl.dataset.bound = '1';
-                cnftePlayer.tracks = window.__cnftePlayerTracks || [];
                 cnftePlayer.mode = localStorage.getItem(PLAYER_LS.mode) || window.__cnfteConfig.playerDefaultMode || 'order';
-                const savedIdx = parseInt(localStorage.getItem(PLAYER_LS.index), 10);
-                cnftePlayer.index = (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < cnftePlayer.tracks.length) ? savedIdx : 0;
-                if (cnftePlayer.tracks[cnftePlayer.index]) {
-                    loadLyricsFor(cnftePlayer.tracks[cnftePlayer.index]);
+                const applyTracks = (tracks) => {
+                    cnftePlayer.tracks = tracks || [];
+                    const savedIdx = parseInt(localStorage.getItem(PLAYER_LS.index), 10);
+                    cnftePlayer.index = (!isNaN(savedIdx) && savedIdx >= 0 && savedIdx < cnftePlayer.tracks.length) ? savedIdx : 0;
+                    if (cnftePlayer.tracks[cnftePlayer.index]) {
+                        loadLyricsFor(cnftePlayer.tracks[cnftePlayer.index]);
+                    }
+                    const listEl = document.getElementById('player-playlist');
+                    if (listEl) delete listEl.dataset.rendered;
+                    renderPlayerWidget();
+                };
+                if (Array.isArray(window.__cnftePlayerTracks)) {
+                    applyTracks(window.__cnftePlayerTracks);
+                } else {
+                    ensurePlayerTracks().then(applyTracks);
                 }
                 audioEl.addEventListener('error', () => {
                     const err = audioEl.error;

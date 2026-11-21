@@ -155,14 +155,16 @@
     }
     .svg-icon[fill="none"] { stroke: currentColor; }
 
-    /* ── Ambient Wallpaper & Depth Scrim ── */
+    /* ── Ambient Wallpaper & Depth Scrim ──
+       将模糊直接应用在静态背景图层 .bg-fixed 上（GPU 仅光栅化缓存一次），
+       避免 .bg-overlay 每帧对全屏做 backdrop-filter 实时采样导致移动端严重掉帧。 */
     .bg-fixed {
         position: fixed;
-        inset: 0;
+        inset: -24px;
         z-index: -2;
         background: url('{{ config.bg_url | default("https://cnfte.top/attachments/bj.webp") }}') center/cover no-repeat;
-        will-change: transform;
-        transform: translateZ(0) scale(1.02);
+        filter: blur(16px) saturate(1.12);
+        transform: translateZ(0);
     }
 
     .bg-overlay {
@@ -170,8 +172,6 @@
         inset: 0;
         z-index: -1;
         background: rgba(11, 11, 14, 0.56);
-        backdrop-filter: blur(22px) saturate(140%);
-        -webkit-backdrop-filter: blur(22px) saturate(140%);
     }
 
     /* ── Top Reading / SPA Progress Bar ── */
@@ -892,12 +892,14 @@
         display: grid;
         grid-template-columns: 264px minmax(0, 1fr);
         background: var(--material-regular);
-        backdrop-filter: blur(28px) saturate(180%);
-        -webkit-backdrop-filter: blur(28px) saturate(180%);
+        backdrop-filter: blur(16px) saturate(160%);
+        -webkit-backdrop-filter: blur(16px) saturate(160%);
         border: 1px solid var(--separator);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 10px 30px rgba(0, 0, 0, 0.24);
         border-radius: var(--r-lg);
         overflow: hidden;
+        content-visibility: auto;
+        contain-intrinsic-size: 0 210px;
         transition: transform .36s var(--ease-spring), border-color .25s var(--ease-std), background .25s var(--ease-std), box-shadow .32s var(--ease-out);
     }
 
@@ -1538,6 +1540,37 @@
             padding: 20px;
             flex-direction: column;
             align-items: flex-start;
+        }
+    }
+
+    @media (max-width: 768px), (hover: none) and (pointer: coarse) {
+        /* 移动端 GPU 优化：保留悬浮导航栏/弹层/FAB 的 Liquid Glass 实时毛玻璃，
+           滚动内容区卡片改用高质感半透明深色材质（底层 .bg-fixed 已静态模糊），
+           在不改变任何动效与视觉层次的前提下消除 30+ 次/帧的移动端离屏模糊开销。 */
+        .bg-fixed {
+            filter: blur(10px) saturate(1.08);
+        }
+        nav {
+            backdrop-filter: blur(14px) saturate(170%);
+            -webkit-backdrop-filter: blur(14px) saturate(170%);
+        }
+        .post-card,
+        .widget,
+        .post-container,
+        .terminal-widget,
+        #site-footer,
+        .friend-card {
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            background: rgba(28, 28, 32, 0.86);
+        }
+        .terminal-widget {
+            background: rgba(20, 20, 24, 0.90);
+        }
+        .hero-contact-link,
+        .hero-notice-trigger {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
     }
 
