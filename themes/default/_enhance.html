@@ -13,20 +13,42 @@
        Settings Sheet · Now Playing Player · Grouped Archive · Chips · Reveal
        ═══════════════════════════════════════════════════════════════════════ */
 
-    /* ── 侧边栏位置（仅桌面宽屏生效，与 1024px 平板断点一致） ── */
+    /* ── 侧边栏位置（仅桌面宽屏生效，与 1024px 平板断点一致） ──
+       .overview-bento 固定 order: -2 始终置顶跨全宽，避免 sidebar-left 时
+       #site-aside(order:-1) 跑到概览区上面导致错位。 */
+    #main-grid > .overview-bento {
+        order: -2;
+    }
+
     @media (min-width: 1025px) {
         #main-grid.sidebar-left {
             grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
         }
-        #main-grid.sidebar-left #site-aside {
+        #main-grid.sidebar-left > .overview-bento {
+            grid-column: 1 / -1;
+            grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+        }
+        #main-grid.sidebar-left > .overview-bento:not(.heatmap-off) > .stats-bento-card {
             order: -1;
+        }
+        #main-grid.sidebar-left > #site-aside {
+            order: -1;
+            grid-column: 1;
+        }
+        #main-grid.sidebar-left > #main-content {
+            order: 0;
+            grid-column: 2;
         }
     }
 
     #main-grid.sidebar-none {
         grid-template-columns: minmax(0, 1fr) !important;
     }
-    #main-grid.sidebar-none #site-aside {
+    #main-grid.sidebar-none > .overview-bento,
+    #main-grid.sidebar-none > #main-content {
+        grid-column: 1 !important;
+    }
+    #main-grid.sidebar-none > #site-aside {
         display: none !important;
     }
 
