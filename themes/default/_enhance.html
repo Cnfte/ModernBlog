@@ -2391,6 +2391,42 @@
                 });
                 h.appendChild(btn);
             });
+
+            // 8. 按需懒加载 KaTeX 渲染数学公式（仅当文章包含公式时才加载，零额外首屏开销）
+            const hasMath = body.querySelector('.post-math-block') || /\$\$[\s\S]+?\$\$/.test(body.textContent || '');
+            if (hasMath) {
+                const runKatex = () => {
+                    if (typeof window.renderMathInElement === 'function') {
+                        window.renderMathInElement(body, {
+                            delimiters: [
+                                { left: '$$', right: '$$', display: true },
+                                { left: '$', right: '$', display: false }
+                            ],
+                            throwOnError: false
+                        });
+                    }
+                };
+                if (typeof window.renderMathInElement === 'function') {
+                    runKatex();
+                } else if (!window.__cnfteKatexLoading) {
+                    window.__cnfteKatexLoading = true;
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+                    document.head.appendChild(link);
+                    const s1 = document.createElement('script');
+                    s1.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
+                    s1.onload = () => {
+                        const s2 = document.createElement('script');
+                        s2.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js';
+                        s2.onload = runKatex;
+                        document.head.appendChild(s2);
+                    };
+                    document.head.appendChild(s1);
+                } else {
+                    setTimeout(runKatex, 600);
+                }
+            }
         }
 
         // ── 首次初始化（每个功能独立 try/catch，避免其中一个异常导致后面的

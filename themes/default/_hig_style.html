@@ -1784,13 +1784,34 @@
         color-scheme: dark;
     }
 
-    /* 待办清单复选框 */
+    /* 待办清单复选框 & 删除线 & 数学公式卡片 */
+    .post-body li.task-item {
+        list-style: none;
+        margin-left: -1.2em;
+    }
     .post-body input[type="checkbox"] {
         accent-color: var(--accent);
         width: 15px;
         height: 15px;
         margin-right: 6px;
         vertical-align: -2px;
+    }
+    .post-body del {
+        color: var(--label-tertiary);
+        text-decoration: line-through;
+        text-decoration-color: rgba(255, 255, 255, 0.45);
+    }
+    .post-body .post-math-block {
+        margin: 1.4em 0;
+        padding: 16px 20px;
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--separator-subtle);
+        overflow-x: auto;
+        text-align: center;
+    }
+    .post-body .post-math-block .katex-display {
+        margin: 0 !important;
     }
 
     .post-body ul,

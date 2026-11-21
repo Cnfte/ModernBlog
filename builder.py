@@ -138,8 +138,53 @@ def _get_meta_desc(content: str, custom: str, length=155) -> str:
 
 
 def _render_md(content: str) -> tuple[str, str]:
+    # 保护代码块与块级 LaTeX 公式不被 Markdown 误解析（例如公式里的 _ 或 ^）
+    protected: list[str] = []
+    def _stash(raw: str) -> str:
+        idx = len(protected)
+        protected.append(raw)
+        return f"@@MDSTASH{idx}@@"
+
+    # 1. 保护围栏代码块与行内代码
+    tmp = re.sub(r'```[\s\S]*?```', lambda m: _stash(m.group(0)), content)
+    tmp = re.sub(r'`[^`\n]+`', lambda m: _stash(m.group(0)), tmp)
+
+    # 2. 保护块级数学公式 $$...$$，最终原样交给前端 KaTeX 渲染
+    math_blocks: list[str] = []
+    def _stash_math(m):
+        idx = len(math_blocks)
+        math_blocks.append(m.group(1).strip())
+        return f"\n\n@@MATHBLK{idx}@@\n\n"
+    tmp = re.sub(r'(?m)^\$\$\s*\n([\s\S]*?)\n\$\$\s*$', _stash_math, tmp)
+
+    # 3. 支持 GFM 删除线 ~~text~~ -> <del>text</del>
+    tmp = re.sub(r'~~(?=\S)(.+?)(?<=\S)~~', r'<del>\1</del>', tmp)
+
+    # 还原被保护的代码块以便 Python-Markdown 正常高亮
+    for idx, raw in enumerate(protected):
+        tmp = tmp.replace(f"@@MDSTASH{idx}@@", raw)
+
     md = markdown.Markdown(extensions=MD_EXTENSIONS, extension_configs=MD_EXT_CONFIGS)
-    html = md.convert(content)
+    html = md.convert(tmp)
+
+    # 还原块级数学公式容器
+    for idx, expr in enumerate(math_blocks):
+        safe_expr = expr.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        html = html.replace(
+            f'<p>@@MATHBLK{idx}@@</p>',
+            f'<div class="post-math-block">$$\n{safe_expr}\n$$</div>'
+        ).replace(
+            f'@@MATHBLK{idx}@@',
+            f'<div class="post-math-block">$$\n{safe_expr}\n$$</div>'
+        )
+
+    # 4. 支持 GFM 待办清单 - [x] / - [ ]
+    html = re.sub(
+        r'<li>\s*\[([ xX])\]\s+',
+        lambda m: f'<li class="task-item"><input type="checkbox" disabled{" checked" if m.group(1).lower()=="x" else ""}> ',
+        html
+    )
+
     # 为文章正文图片自动添加 lazy loading + async decoding
     html = re.sub(
         r'<img(?![^>]*loading=)([^>]*)>',
