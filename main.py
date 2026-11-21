@@ -290,7 +290,7 @@ body {
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   display: grid;
-  grid-template-columns: 204px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr);
   grid-template-rows: 52px minmax(0, 1fr) 32px;
   grid-template-areas:
     "top top"
@@ -477,7 +477,7 @@ label.field-label {
 /* ── Split Layout for Content Editor ── */
 .split { display: flex; block-size: 100%; overflow: hidden; }
 .split-left {
-  inline-size: 276px;
+  inline-size: 230px;
   flex-shrink: 0;
   border-inline-end: 1px solid var(--border);
   padding: 12px 8px;
@@ -975,19 +975,19 @@ tr.selected td { background: var(--accent-bg); color: var(--text); }
           <input id="f-date" placeholder="YYYY-MM-DD">
         </div>
       </div>
-      <div style="display:flex;gap:10px;margin-bottom:10px">
-        <div style="flex:1">
-          <label class="field-label">分类（单选，如：技术/生活）</label>
-          <input id="f-category" placeholder="分类名称">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;align-items:end;margin-bottom:10px">
+        <div>
+          <label class="field-label" style="margin-top:0">分类</label>
+          <input id="f-category" placeholder="如：技术 / 生活">
         </div>
-        <div style="flex:1">
-          <label class="field-label">标签（英文逗号分隔）</label>
+        <div>
+          <label class="field-label" style="margin-top:0">标签（逗号分隔）</label>
           <input id="f-tags" placeholder="Python, 算法, Web">
         </div>
-        <div style="flex:1">
-          <label class="field-label">封面图 URL</label>
+        <div style="grid-column:span 1">
+          <label class="field-label" style="margin-top:0">封面图 URL</label>
           <div style="display:flex;gap:6px">
-            <input id="f-cover" placeholder="/assets/cover.jpg" style="flex:1">
+            <input id="f-cover" placeholder="/assets/cover.jpg" style="flex:1;min-width:0">
             <button type="button" class="btn blue" onclick="openCoverPicker()" style="flex-shrink:0;padding:0 10px" title="从素材库挑选封面">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               素材库
