@@ -1398,8 +1398,12 @@
                 if (state.page > totalPages) state.page = totalPages;
                 if (state.page < 1) state.page = 1;
                 const startIdx = (state.page - 1) * perPage;
-                cards.forEach(c => c.style.display = 'none');
-                visible.slice(startIdx, startIdx + perPage).forEach(c => c.style.display = '');
+                const pageCards = visible.slice(startIdx, startIdx + perPage);
+                cards.forEach(c => { c.style.display = 'none'; c.classList.remove('is-featured'); });
+                pageCards.forEach(c => c.style.display = '');
+                if (pageCards.length % 2 === 1) {
+                    pageCards[0].classList.add('is-featured');
+                }
 
                 const empty = main.querySelector('.empty-state');
                 if (empty) empty.style.display = visible.length ? 'none' : '';
