@@ -833,6 +833,7 @@ tr.selected td { background: var(--accent-bg); color: var(--text); }
   cursor: pointer;
 }
 .ve-fmt-btn:hover { color: var(--text); border-color: var(--accent); }
+.ve-fmt-btn.active { background: var(--accent); color: #0b0b0e; border-color: transparent; }
 .ve-table-wrap {
   overflow-x: auto;
   margin-bottom: 6px;
@@ -1010,59 +1011,17 @@ tr.selected td { background: var(--accent-bg); color: var(--text); }
         </div>
 
         <div id="visual-editor-wrap">
-          <div class="ve-palette" id="ve-palette" aria-label="可拖动内容模块">
-            <span style="font-size:.7rem;color:var(--dim);align-self:center;margin-right:2px">拖动或点击添加：</span>
-            <div class="ve-pal-item" draggable="true" data-btype="heading" onclick="veAddBlock('heading')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 12h8"/><path d="M4 18V6"/><path d="M12 18V6"/><path d="M17 12l3-2v8"/></svg>标题
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="paragraph" onclick="veAddBlock('paragraph')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg>文本
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="table" onclick="veAddBlock('table')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>表格
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="image" onclick="veAddBlock('image')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>图片
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="attachment" onclick="veAddBlock('attachment')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>附件
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="link" onclick="veAddBlock('link')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>链接
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="code" onclick="veAddBlock('code')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>代码块
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="list" onclick="veAddBlock('list')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>列表
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="checklist" onclick="veAddBlock('checklist')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>待办清单
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="quote" onclick="veAddBlock('quote')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/></svg>引用
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="callout" onclick="veAddBlock('callout')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>提示框
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="details" onclick="veAddBlock('details')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>折叠面板
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="media" onclick="veAddBlock('media')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>视频/音频
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="math" onclick="veAddBlock('math')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16l-8 8 8 8H4"/></svg>数学公式
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="html" onclick="veAddBlock('html')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 9l-3 3 3 3"/><path d="M16 9l3 3-3 3"/></svg>HTML嵌入
-            </div>
-            <div class="ve-pal-item" draggable="true" data-btype="divider" onclick="veAddBlock('divider')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="12" x2="21" y2="12"/></svg>分隔线
-            </div>
+          <div class="ve-palette-cats" id="ve-palette-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+            <button type="button" class="ve-fmt-btn active" data-cat="all" onclick="veSetCat('all')">全部 (31)</button>
+            <button type="button" class="ve-fmt-btn" data-cat="basic" onclick="veSetCat('basic')">基础排版</button>
+            <button type="button" class="ve-fmt-btn" data-cat="highlight" onclick="veSetCat('highlight')">提示高亮</button>
+            <button type="button" class="ve-fmt-btn" data-cat="layout" onclick="veSetCat('layout')">结构布局</button>
+            <button type="button" class="ve-fmt-btn" data-cat="tech" onclick="veSetCat('tech')">技术学术</button>
+            <button type="button" class="ve-fmt-btn" data-cat="media" onclick="veSetCat('media')">媒体资源</button>
           </div>
+          <div class="ve-palette" id="ve-palette" aria-label="可拖动内容模块"></div>
           <div class="ve-canvas" id="ve-canvas">
-            <div class="ve-empty">从上方拖动或点击模块（标题、文本、图片、附件、链接等）开始可视化编写文章</div>
+            <div class="ve-empty">从上方拖动或点击模块（共 31 种积木）开始可视化编写文章</div>
           </div>
         </div>
 
@@ -1937,49 +1896,91 @@ async function openCoverPicker(onSelect = null, imagesOnly = true) {
   document.getElementById('cover-modal').classList.add('open');
 }
 
-// ─── 可视化积木编辑器 (Visual Block Editor + Raw Markdown 双向同步) ───
+// ─── 可视化积木编辑器 (31 种创作者模块 + Raw Markdown 无损双向同步) ───
 let veMode = 'visual';
 let veBlocks = [];
 let veDragSrcIndex = null;
 let veDragPaletteType = null;
+let veActiveCat = 'all';
 
-const VE_LABELS = {
-  heading: '标题',
-  paragraph: '文本',
-  table: '表格',
-  image: '图片',
-  attachment: '附件',
-  link: '链接',
-  code: '代码块',
-  list: '列表',
-  checklist: '待办清单',
-  quote: '引用',
-  callout: '提示框',
-  details: '折叠面板',
-  media: '视频/音频',
-  math: '数学公式',
-  html: 'HTML嵌入',
-  divider: '分隔线'
-};
+const VE_CATALOG = [
+  { type: 'heading',    cat: 'basic',     label: '标题' },
+  { type: 'paragraph',  cat: 'basic',     label: '文本' },
+  { type: 'lead',       cat: 'basic',     label: '导语段' },
+  { type: 'list',       cat: 'basic',     label: '列表' },
+  { type: 'checklist',  cat: 'basic',     label: '待办清单' },
+  { type: 'quote',      cat: 'basic',     label: '引用' },
+  { type: 'divider',    cat: 'basic',     label: '分隔线' },
+  { type: 'callout',    cat: 'highlight', label: '提示框' },
+  { type: 'banner',     cat: 'highlight', label: '结论横幅' },
+  { type: 'details',    cat: 'highlight', label: '折叠面板' },
+  { type: 'spoiler',    cat: 'highlight', label: '防剧透' },
+  { type: 'badges',     cat: 'highlight', label: '徽章组' },
+  { type: 'table',      cat: 'layout',    label: '表格' },
+  { type: 'columns',    cat: 'layout',    label: '双栏布局' },
+  { type: 'cards',      cat: 'layout',    label: '特性卡片' },
+  { type: 'timeline',   cat: 'layout',    label: '时间轴' },
+  { type: 'steps',      cat: 'layout',    label: '步骤指南' },
+  { type: 'kv',         cat: 'layout',    label: '参数表' },
+  { type: 'proscons',   cat: 'layout',    label: '优缺点' },
+  { type: 'code',       cat: 'tech',      label: '代码块' },
+  { type: 'terminal',   cat: 'tech',      label: '终端命令' },
+  { type: 'diff',       cat: 'tech',      label: '代码Diff' },
+  { type: 'math',       cat: 'tech',      label: '数学公式' },
+  { type: 'mermaid',    cat: 'tech',      label: '流程图' },
+  { type: 'kbd',        cat: 'tech',      label: '快捷键' },
+  { type: 'image',      cat: 'media',     label: '单图' },
+  { type: 'gallery',    cat: 'media',     label: '多图画廊' },
+  { type: 'media',      cat: 'media',     label: '视频/音频' },
+  { type: 'link',       cat: 'media',     label: '书签链接' },
+  { type: 'attachment', cat: 'media',     label: '附件下载' },
+  { type: 'html',       cat: 'media',     label: 'HTML嵌入' },
+];
+const VE_LABELS = Object.fromEntries(VE_CATALOG.map(x => [x.type, x.label]));
+
+function veEscHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function veEncData(obj) {
+  return encodeURIComponent(JSON.stringify(obj));
+}
+function veDecData(str) {
+  try { return JSON.parse(decodeURIComponent(str)); } catch (_) { return null; }
+}
 
 function veCreateBlock(type) {
   switch (type) {
-    case 'heading': return { type: 'heading', level: 2, text: '' };
-    case 'table': return { type: 'table', headers: ['列 1', '列 2', '列 3'], rows: [['', '', ''], ['', '', '']] };
-    case 'image': return { type: 'image', alt: '', url: '' };
+    case 'heading':    return { type: 'heading', level: 2, text: '' };
+    case 'lead':       return { type: 'lead', text: '' };
+    case 'list':       return { type: 'list', ordered: false, text: '' };
+    case 'checklist':  return { type: 'checklist', items: [{ done: false, text: '' }] };
+    case 'quote':      return { type: 'quote', text: '' };
+    case 'divider':    return { type: 'divider' };
+    case 'callout':    return { type: 'callout', kind: 'NOTE', text: '' };
+    case 'banner':     return { type: 'banner', tone: 'blue', title: '核心结论', text: '' };
+    case 'details':    return { type: 'details', summary: '点击展开详情', text: '' };
+    case 'spoiler':    return { type: 'spoiler', text: '' };
+    case 'badges':     return { type: 'badges', text: '开源, 推荐, v2.0' };
+    case 'table':      return { type: 'table', headers: ['列 1', '列 2', '列 3'], rows: [['', '', ''], ['', '', '']] };
+    case 'columns':    return { type: 'columns', left: '', right: '' };
+    case 'cards':      return { type: 'cards', items: [{ title: '亮点 1', desc: '' }, { title: '亮点 2', desc: '' }] };
+    case 'timeline':   return { type: 'timeline', items: [{ date: '2026-01', title: '里程碑', desc: '' }] };
+    case 'steps':      return { type: 'steps', items: [{ title: '第一步', desc: '' }, { title: '第二步', desc: '' }] };
+    case 'kv':         return { type: 'kv', items: [{ k: '版本', v: '1.0.0' }, { k: '系统要求', v: 'Linux / Windows / macOS' }] };
+    case 'proscons':   return { type: 'proscons', pros: '优点 1\n优点 2', cons: '不足 1' };
+    case 'code':       return { type: 'code', lang: 'python', code: '' };
+    case 'terminal':   return { type: 'terminal', cmd: 'npm install', out: '' };
+    case 'diff':       return { type: 'diff', code: '- oldLine()\n+ newLine()' };
+    case 'math':       return { type: 'math', code: 'E = mc^2' };
+    case 'mermaid':    return { type: 'mermaid', code: 'flowchart LR\n  A[开始] --> B[处理] --> C[完成]' };
+    case 'kbd':        return { type: 'kbd', keys: 'Ctrl + Shift + P', desc: '打开命令面板' };
+    case 'image':      return { type: 'image', alt: '', url: '' };
+    case 'gallery':    return { type: 'gallery', items: [{ url: '', alt: '' }, { url: '', alt: '' }] };
+    case 'media':      return { type: 'media', kind: 'video', url: '', title: '' };
+    case 'link':       return { type: 'link', text: '', url: '' };
     case 'attachment': return { type: 'attachment', name: '', url: '' };
-    case 'link': return { type: 'link', text: '', url: '' };
-    case 'quote': return { type: 'quote', text: '' };
-    case 'callout': return { type: 'callout', kind: 'NOTE', text: '' };
-    case 'details': return { type: 'details', summary: '点击展开详情', text: '' };
-    case 'code': return { type: 'code', lang: '', code: '' };
-    case 'list': return { type: 'list', ordered: false, text: '' };
-    case 'checklist': return { type: 'checklist', items: [{ done: false, text: '' }] };
-    case 'media': return { type: 'media', kind: 'video', url: '', title: '' };
-    case 'math': return { type: 'math', code: '' };
-    case 'html': return { type: 'html', code: '' };
-    case 'divider': return { type: 'divider' };
-    default: return { type: 'paragraph', text: '' };
+    case 'html':       return { type: 'html', code: '' };
+    default:           return { type: 'paragraph', text: '' };
   }
 }
 
@@ -1996,6 +1997,58 @@ function veBlocksToMarkdown(blocks) {
     } else if (b.type === 'paragraph') {
       const t = (b.text || '').trim();
       if (t) parts.push(t);
+    } else if (b.type === 'lead') {
+      const t = (b.text || '').trim();
+      if (t) parts.push(`<div class="mb-lead" data-mb="lead" data-mb-json="${veEncData(b)}">${veEscHtml(t).replace(/\n/g, '<br>')}</div>`);
+    } else if (b.type === 'banner') {
+      const title = (b.title || '').trim(), t = (b.text || '').trim();
+      if (title || t) parts.push(`<div class="mb-banner" data-tone="${veEscHtml(b.tone || 'blue')}" data-mb="banner" data-mb-json="${veEncData(b)}"><div class="mb-banner-title">${veEscHtml(title)}</div><div class="mb-banner-body">${veEscHtml(t).replace(/\n/g, '<br>')}</div></div>`);
+    } else if (b.type === 'spoiler') {
+      const t = (b.text || '').trim();
+      if (t) parts.push(`<div class="mb-spoiler" data-mb="spoiler" data-mb-json="${veEncData(b)}"><div class="mb-spoiler-hint">剧透内容 · 点击查看</div><div class="mb-spoiler-body">${veEscHtml(t).replace(/\n/g, '<br>')}</div></div>`);
+    } else if (b.type === 'badges') {
+      const items = (b.text || '').split(/[,，\n]/).map(s => s.trim()).filter(Boolean);
+      if (items.length) parts.push(`<div class="mb-badges" data-mb="badges" data-mb-json="${veEncData(b)}">${items.map(x => `<span class="mb-badge">${veEscHtml(x)}</span>`).join('')}</div>`);
+    } else if (b.type === 'columns') {
+      parts.push(`<div class="mb-columns" data-mb="columns" data-mb-json="${veEncData(b)}"><div class="mb-col">${veEscHtml(b.left || '').replace(/\n/g, '<br>')}</div><div class="mb-col">${veEscHtml(b.right || '').replace(/\n/g, '<br>')}</div></div>`);
+    } else if (b.type === 'cards') {
+      const items = (b.items || []).filter(x => (x.title || '').trim() || (x.desc || '').trim());
+      if (items.length) parts.push(`<div class="mb-cards" data-mb="cards" data-mb-json="${veEncData(b)}">${items.map(x => `<div class="mb-card-item"><div class="mb-card-title">${veEscHtml(x.title)}</div><div class="mb-card-desc">${veEscHtml(x.desc).replace(/\n/g, '<br>')}</div></div>`).join('')}</div>`);
+    } else if (b.type === 'timeline') {
+      const items = (b.items || []).filter(x => (x.date || '').trim() || (x.title || '').trim());
+      if (items.length) parts.push(`<div class="mb-timeline" data-mb="timeline" data-mb-json="${veEncData(b)}">${items.map(x => `<div class="mb-tl-item"><div class="mb-tl-date">${veEscHtml(x.date)}</div><div class="mb-tl-title">${veEscHtml(x.title)}</div><div class="mb-tl-desc">${veEscHtml(x.desc).replace(/\n/g, '<br>')}</div></div>`).join('')}</div>`);
+    } else if (b.type === 'steps') {
+      const items = (b.items || []).filter(x => (x.title || '').trim() || (x.desc || '').trim());
+      if (items.length) parts.push(`<div class="mb-steps" data-mb="steps" data-mb-json="${veEncData(b)}">${items.map((x, idx) => `<div class="mb-step"><span class="mb-step-num">${idx + 1}</span><div><div class="mb-step-title">${veEscHtml(x.title)}</div><div class="mb-step-desc">${veEscHtml(x.desc).replace(/\n/g, '<br>')}</div></div></div>`).join('')}</div>`);
+    } else if (b.type === 'kv') {
+      const items = (b.items || []).filter(x => (x.k || '').trim() || (x.v || '').trim());
+      if (items.length) parts.push(`<div class="mb-kv" data-mb="kv" data-mb-json="${veEncData(b)}">${items.map(x => `<div class="mb-kv-row"><span class="mb-kv-k">${veEscHtml(x.k)}</span><span class="mb-kv-v">${veEscHtml(x.v)}</span></div>`).join('')}</div>`);
+    } else if (b.type === 'proscons') {
+      const ps = (b.pros || '').split('\n').map(s => s.trim()).filter(Boolean);
+      const cs = (b.cons || '').split('\n').map(s => s.trim()).filter(Boolean);
+      parts.push(`<div class="mb-proscons" data-mb="proscons" data-mb-json="${veEncData(b)}"><div class="mb-pc-box pros"><div class="mb-pc-head">优点</div><ul>${ps.map(x => `<li>${veEscHtml(x)}</li>`).join('')}</ul></div><div class="mb-pc-box cons"><div class="mb-pc-head">不足</div><ul>${cs.map(x => `<li>${veEscHtml(x)}</li>`).join('')}</ul></div></div>`);
+    } else if (b.type === 'terminal') {
+      const cmd = (b.cmd || '').trim(), out = (b.out || '').trim();
+      const cmdHtml = veEscHtml(cmd).replace(/\r?\n/g, '&#10;');
+      const outHtml = veEscHtml(out).replace(/\r?\n/g, '&#10;');
+      if (cmd) parts.push(`<div class="mb-terminal" data-mb="terminal" data-mb-json="${veEncData(b)}"><div class="mb-term-head"><span>TERMINAL</span></div><div class="mb-term-body"><div class="mb-term-cmd">${cmdHtml}</div>${out ? `<div class="mb-term-out">${outHtml}</div>` : ''}</div></div>`);
+    } else if (b.type === 'diff') {
+      const lines = (b.code || '').split('\n');
+      const htmlLines = lines.map(l => {
+        const cls = l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : 'ctx';
+        return `<div class="mb-diff-line ${cls}">${veEscHtml(l || ' ')}</div>`;
+      }).join('');
+      parts.push(`<div class="mb-diff" data-mb="diff" data-mb-json="${veEncData(b)}">${htmlLines}</div>`);
+    } else if (b.type === 'mermaid') {
+      const c = (b.code || '').trim();
+      const cOneLine = veEscHtml(c).replace(/\r?\n/g, '&#10;');
+      if (c) parts.push(`<div class="mb-mermaid" data-mb="mermaid" data-mb-json="${veEncData(b)}" data-code="${cOneLine}">${cOneLine}</div>`);
+    } else if (b.type === 'kbd') {
+      const keys = (b.keys || '').split('+').map(s => s.trim()).filter(Boolean);
+      if (keys.length) parts.push(`<div class="mb-kbd-row" data-mb="kbd" data-mb-json="${veEncData(b)}"><span class="mb-kbd-keys">${keys.map(k => `<kbd>${veEscHtml(k)}</kbd>`).join(' + ')}</span><span class="mb-kbd-desc">${veEscHtml(b.desc || '')}</span></div>`);
+    } else if (b.type === 'gallery') {
+      const imgs = (b.items || []).filter(x => (x.url || '').trim());
+      if (imgs.length) parts.push(`<div class="mb-gallery" data-mb="gallery" data-mb-json="${veEncData(b)}">${imgs.map(x => `<img src="${veEscHtml(x.url)}" alt="${veEscHtml(x.alt || '')}" loading="lazy" decoding="async">`).join('')}</div>`);
     } else if (b.type === 'table') {
       const cols = Math.max(1, (b.headers || []).length);
       const hdr = Array.from({ length: cols }, (_, i) => veEscapePipe((b.headers || [])[i] || `列${i + 1}`));
@@ -2084,6 +2137,7 @@ function veParseMarkdown(md) {
     paraBuf = [];
   };
   while (i < lines.length) {
+    const prevI = i;
     const line = lines[i];
     const trimmed = line.trim();
     if (!trimmed) {
@@ -2091,7 +2145,19 @@ function veParseMarkdown(md) {
       i++;
       continue;
     }
-    // Fenced code block
+    const mbM = /^<div\b[^>]*\bdata-mb="([a-z]+)"[^>]*\bdata-mb-json="([^"]+)"/.exec(trimmed);
+    if (mbM) {
+      flushPara();
+      const parsed = veDecData(mbM[2]);
+      if (parsed && parsed.type) out.push(parsed);
+      else out.push({ type: 'html', code: trimmed });
+      i++;
+      while (i < lines.length && !trimmed.endsWith('</div>') && lines[i].trim() !== '') {
+        if (lines[i].trim().endsWith('</div>')) { i++; break; }
+        i++;
+      }
+      continue;
+    }
     const codeOpen = /^```(\S*)\s*$/.exec(trimmed);
     if (codeOpen) {
       flushPara();
@@ -2106,7 +2172,13 @@ function veParseMarkdown(md) {
       out.push({ type: 'code', lang, code: codeLines.join('\n') });
       continue;
     }
-    // Block Math $$ ... $$
+    const singleMath = /^\$\$([^\n$]+?)\$\$$/.exec(trimmed);
+    if (singleMath) {
+      flushPara();
+      out.push({ type: 'math', code: singleMath[1].trim() });
+      i++;
+      continue;
+    }
     if (trimmed === '$$') {
       flushPara();
       const mLines = [];
@@ -2119,7 +2191,6 @@ function veParseMarkdown(md) {
       out.push({ type: 'math', code: mLines.join('\n') });
       continue;
     }
-    // <details> collapsible block
     if (/^<details[\s>]/i.test(trimmed)) {
       flushPara();
       const dLines = [];
@@ -2134,7 +2205,6 @@ function veParseMarkdown(md) {
       out.push({ type: 'details', summary: sm ? sm[1].trim() : '展开详情', text: bodyD });
       continue;
     }
-    // Media tags <video> / <audio> / <iframe>
     const mediaM = /^<(video|audio|iframe)\b[^>]*\bsrc="([^"]+)"[^>]*>[\s\S]*<\/\1>$/i.exec(trimmed);
     if (mediaM) {
       flushPara();
@@ -2143,7 +2213,6 @@ function veParseMarkdown(md) {
       i++;
       continue;
     }
-    // GFM Table
     if (trimmed.includes('|') && i + 1 < lines.length && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(lines[i + 1].trim())) {
       flushPara();
       const headers = veSplitTableRow(lines[i]);
@@ -2156,14 +2225,12 @@ function veParseMarkdown(md) {
       out.push({ type: 'table', headers, rows: rows.length ? rows : [headers.map(() => '')] });
       continue;
     }
-    // Divider
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
       flushPara();
       out.push({ type: 'divider' });
       i++;
       continue;
     }
-    // Heading
     const hm = /^(#{1,6})\s+(.+)$/.exec(trimmed);
     if (hm) {
       flushPara();
@@ -2171,7 +2238,6 @@ function veParseMarkdown(md) {
       i++;
       continue;
     }
-    // Standalone Image
     const im = /^!\[([^\]]*)\]\(([^)]+)\)$/.exec(trimmed);
     if (im) {
       flushPara();
@@ -2179,7 +2245,6 @@ function veParseMarkdown(md) {
       i++;
       continue;
     }
-    // Standalone Attachment or Link
     const lm = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(trimmed);
     if (lm) {
       flushPara();
@@ -2191,7 +2256,6 @@ function veParseMarkdown(md) {
       i++;
       continue;
     }
-    // GFM Callout or Blockquote
     if (/^>\s?/.test(trimmed)) {
       flushPara();
       const firstBody = trimmed.replace(/^>\s?/, '');
@@ -2215,7 +2279,6 @@ function veParseMarkdown(md) {
       }
       continue;
     }
-    // Task Checklist
     if (/^[-*+]\s+\[([ xX])\]\s+/.test(trimmed)) {
       flushPara();
       const items = [];
@@ -2228,7 +2291,6 @@ function veParseMarkdown(md) {
       out.push({ type: 'checklist', items });
       continue;
     }
-    // List (unordered or ordered)
     const ulMatch = /^[-*+]\s+(.+)$/.exec(trimmed);
     const olMatch = /^\d+\.\s+(.+)$/.exec(trimmed);
     if (ulMatch || olMatch) {
@@ -2245,8 +2307,15 @@ function veParseMarkdown(md) {
       out.push({ type: 'list', ordered, text: items.join('\n') });
       continue;
     }
+    if (/^<[a-z][\s\S]*>$/i.test(trimmed) && !trimmed.startsWith('<http')) {
+      flushPara();
+      out.push({ type: 'html', code: trimmed });
+      i++;
+      continue;
+    }
     paraBuf.push(line);
     i++;
+    if (i === prevI) i++;
   }
   flushPara();
   return out;
@@ -2282,6 +2351,34 @@ function setEditorMode(mode) {
   }
   if (bVis) bVis.classList.toggle('active', veMode === 'visual');
   if (bRaw) bRaw.classList.toggle('active', veMode === 'raw');
+}
+
+function veSetCat(cat) {
+  veActiveCat = cat;
+  document.querySelectorAll('#ve-palette-cats button').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+  veRenderPalette();
+}
+
+function veRenderPalette() {
+  const palette = document.getElementById('ve-palette');
+  if (!palette) return;
+  palette.innerHTML = '';
+  const items = veActiveCat === 'all' ? VE_CATALOG : VE_CATALOG.filter(x => x.cat === veActiveCat);
+  items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 've-pal-item';
+    el.draggable = true;
+    el.dataset.btype = item.type;
+    el.textContent = '+ ' + item.label;
+    el.onclick = () => veAddBlock(item.type);
+    el.addEventListener('dragstart', (e) => {
+      veDragPaletteType = item.type;
+      veDragSrcIndex = null;
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    el.addEventListener('dragend', () => { veDragPaletteType = null; });
+    palette.appendChild(el);
+  });
 }
 
 function veAddBlock(type, insertAt = null) {
@@ -2322,7 +2419,7 @@ function veRender() {
   if (!canvas) return;
   canvas.innerHTML = '';
   if (!veBlocks.length) {
-    canvas.innerHTML = '<div class="ve-empty">从上方拖动或点击模块（标题、文本、图片、附件、链接等）开始可视化编写文章</div>';
+    canvas.innerHTML = '<div class="ve-empty">从上方拖动或点击模块（共 31 种积木）开始可视化编写文章</div>';
     return;
   }
   veBlocks.forEach((b, idx) => {
@@ -2331,7 +2428,6 @@ function veRender() {
     el.draggable = true;
     el.dataset.idx = idx;
 
-    // Header bar
     const bar = document.createElement('div');
     bar.className = 've-block-bar';
     bar.innerHTML = `
@@ -2344,80 +2440,158 @@ function veRender() {
       </span>`;
     el.appendChild(bar);
 
-    // Body controls by block type
     const body = document.createElement('div');
+    const mkInput = (val, ph, onChange, extraStyle = '') => {
+      const i = document.createElement('input');
+      i.value = val || ''; i.placeholder = ph;
+      if (extraStyle) i.style.cssText = extraStyle;
+      i.oninput = () => { onChange(i.value); veFlushToMarkdown(); };
+      return i;
+    };
+    const mkTa = (val, ph, onChange, minH = '76px', mono = false) => {
+      const t = document.createElement('textarea');
+      t.value = val || ''; t.placeholder = ph;
+      t.style.minHeight = minH;
+      if (mono) { t.style.fontFamily = 'var(--mono)'; t.style.fontSize = '.78rem'; }
+      t.oninput = () => { onChange(t.value); veFlushToMarkdown(); };
+      return t;
+    };
+
     if (b.type === 'heading') {
-      const row = document.createElement('div');
-      row.className = 've-row';
-      const sel = document.createElement('select');
-      sel.style.width = '78px';
+      const row = document.createElement('div'); row.className = 've-row';
+      const sel = document.createElement('select'); sel.style.width = '78px';
       [1, 2, 3, 4].forEach(lv => {
-        const opt = document.createElement('option');
-        opt.value = lv; opt.textContent = 'H' + lv;
-        if (Number(b.level) === lv) opt.selected = true;
-        sel.appendChild(opt);
+        const o = document.createElement('option'); o.value = lv; o.textContent = 'H' + lv;
+        if (Number(b.level) === lv) o.selected = true; sel.appendChild(o);
       });
       sel.onchange = () => { b.level = Number(sel.value); veFlushToMarkdown(); };
-      const inp = document.createElement('input');
-      inp.placeholder = '输入标题文字…';
-      inp.value = b.text || '';
-      inp.style.flex = '1';
-      inp.oninput = () => { b.text = inp.value; veFlushToMarkdown(); };
-      row.append(sel, inp);
+      row.append(sel, mkInput(b.text, '输入标题文字…', v => b.text = v, 'flex:1'));
       body.appendChild(row);
-    } else if (b.type === 'paragraph' || b.type === 'quote') {
-      const ta = document.createElement('textarea');
-      ta.style.minHeight = b.type === 'quote' ? '64px' : '86px';
-      ta.placeholder = b.type === 'quote' ? '输入引用内容…' : '输入正文段落…（可选中文字点击上方按钮一键加粗/斜体/插链接）';
-      ta.value = b.text || '';
-      ta.oninput = () => { b.text = ta.value; veFlushToMarkdown(); };
+    } else if (b.type === 'paragraph' || b.type === 'quote' || b.type === 'lead' || b.type === 'spoiler') {
+      const ta = mkTa(b.text, b.type === 'quote' ? '输入引用内容…' : b.type === 'lead' ? '输入文章导语 / 核心引言…' : b.type === 'spoiler' ? '输入需要点击才能查看的防剧透内容…' : '输入正文段落…（可选中文字点击上方快捷格式按钮）', v => b.text = v, b.type === 'paragraph' ? '88px' : '68px');
       if (b.type === 'paragraph') {
-        const fmtBar = document.createElement('div');
-        fmtBar.className = 've-inline-bar';
-        const wrapSel = (pre, post, fallback) => {
-          const s = ta.selectionStart ?? ta.value.length;
-          const e = ta.selectionEnd ?? ta.value.length;
-          const chosen = ta.value.slice(s, e) || fallback;
+        const fmtBar = document.createElement('div'); fmtBar.className = 've-inline-bar';
+        const wrapSel = (pre, post, fb) => {
+          const s = ta.selectionStart ?? ta.value.length, e = ta.selectionEnd ?? ta.value.length;
+          const chosen = ta.value.slice(s, e) || fb;
           ta.value = ta.value.slice(0, s) + pre + chosen + post + ta.value.slice(e);
-          b.text = ta.value;
-          veFlushToMarkdown();
-          ta.focus();
+          b.text = ta.value; veFlushToMarkdown(); ta.focus();
           ta.setSelectionRange(s + pre.length, s + pre.length + chosen.length);
         };
         [
           ['B 加粗', () => wrapSel('**', '**', '加粗文字')],
           ['I 斜体', () => wrapSel('*', '*', '斜体文字')],
           ['S 删除线', () => wrapSel('~~', '~~', '删除文字')],
-          ['</> 行内代码', () => wrapSel('`', '`', 'code')],
-          ['插链接', () => {
-            const url = prompt('输入链接 URL（https://...）:', 'https://');
-            if (url) wrapSel('[', `](${url})`, '链接文字');
-          }]
-        ].forEach(([label, fn]) => {
-          const fb = document.createElement('button');
-          fb.type = 'button'; fb.className = 've-fmt-btn'; fb.textContent = label;
-          fb.onclick = fn;
-          fmtBar.appendChild(fb);
+          ['U 下划线', () => wrapSel('++', '++', '下划线文字')],
+          ['高亮', () => wrapSel('==', '==', '高亮重点')],
+          ['</> 代码', () => wrapSel('`', '`', 'code')],
+          ['KBD', () => wrapSel('<kbd>', '</kbd>', 'Ctrl')],
+          ['行内公式', () => wrapSel('$', '$', 'a^2+b^2=c^2')],
+          ['插链接', () => { const u = prompt('输入链接 URL:', 'https://'); if (u) wrapSel('[', `](${u})`, '链接文字'); }]
+        ].forEach(([l, fn]) => {
+          const fb = document.createElement('button'); fb.type = 'button'; fb.className = 've-fmt-btn'; fb.textContent = l; fb.onclick = fn; fmtBar.appendChild(fb);
         });
         body.appendChild(fmtBar);
       }
       body.appendChild(ta);
+    } else if (b.type === 'banner') {
+      const r1 = document.createElement('div'); r1.className = 've-row';
+      const sel = document.createElement('select'); sel.style.width = '112px';
+      [['blue','蓝色'],['green','绿色'],['amber','琥珀'],['red','红色'],['purple','紫色']].forEach(([v,l]) => {
+        const o = document.createElement('option'); o.value = v; o.textContent = l;
+        if ((b.tone || 'blue') === v) o.selected = true; sel.appendChild(o);
+      });
+      sel.onchange = () => { b.tone = sel.value; veFlushToMarkdown(); };
+      r1.append(sel, mkInput(b.title, '横幅标题…', v => b.title = v, 'flex:1'));
+      body.append(r1, mkTa(b.text, '横幅正文结论…', v => b.text = v, '64px'));
+    } else if (b.type === 'badges') {
+      body.appendChild(mkInput(b.text, '输入多个徽章（用逗号分隔，如：开源, 推荐, v2.0）', v => b.text = v));
+    } else if (b.type === 'columns') {
+      const row = document.createElement('div'); row.className = 've-row'; row.style.alignItems = 'stretch';
+      const l = mkTa(b.left, '左栏内容…', v => b.left = v, '84px'); l.style.flex = '1';
+      const r = mkTa(b.right, '右栏内容…', v => b.right = v, '84px'); r.style.flex = '1';
+      row.append(l, r); body.appendChild(row);
+    } else if (b.type === 'cards' || b.type === 'steps') {
+      if (!Array.isArray(b.items) || !b.items.length) b.items = [{ title: '', desc: '' }];
+      b.items.forEach((it, ii) => {
+        const r = document.createElement('div'); r.className = 've-row';
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 've-act-btn del'; rm.textContent = '×';
+        rm.onclick = () => { b.items.splice(ii, 1); veFlushToMarkdown(); veRender(); };
+        r.append(mkInput(it.title, b.type === 'steps' ? `步骤 ${ii + 1} 标题` : '卡片标题', v => it.title = v, 'flex:1'),
+                 mkInput(it.desc, '详细说明…', v => it.desc = v, 'flex:1.6'), rm);
+        body.appendChild(r);
+      });
+      const add = document.createElement('button'); add.type = 'button'; add.className = 've-fmt-btn';
+      add.textContent = b.type === 'steps' ? '+ 添加步骤' : '+ 添加卡片';
+      add.onclick = () => { b.items.push({ title: '', desc: '' }); veFlushToMarkdown(); veRender(); };
+      body.appendChild(add);
+    } else if (b.type === 'timeline') {
+      if (!Array.isArray(b.items) || !b.items.length) b.items = [{ date: '', title: '', desc: '' }];
+      b.items.forEach((it, ii) => {
+        const r = document.createElement('div'); r.className = 've-row';
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 've-act-btn del'; rm.textContent = '×';
+        rm.onclick = () => { b.items.splice(ii, 1); veFlushToMarkdown(); veRender(); };
+        r.append(mkInput(it.date, '日期/版本', v => it.date = v, 'width:110px'),
+                 mkInput(it.title, '节点标题', v => it.title = v, 'flex:1'),
+                 mkInput(it.desc, '说明', v => it.desc = v, 'flex:1.4'), rm);
+        body.appendChild(r);
+      });
+      const add = document.createElement('button'); add.type = 'button'; add.className = 've-fmt-btn'; add.textContent = '+ 添加时间节点';
+      add.onclick = () => { b.items.push({ date: '', title: '', desc: '' }); veFlushToMarkdown(); veRender(); };
+      body.appendChild(add);
+    } else if (b.type === 'kv') {
+      if (!Array.isArray(b.items) || !b.items.length) b.items = [{ k: '', v: '' }];
+      b.items.forEach((it, ii) => {
+        const r = document.createElement('div'); r.className = 've-row';
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 've-act-btn del'; rm.textContent = '×';
+        rm.onclick = () => { b.items.splice(ii, 1); veFlushToMarkdown(); veRender(); };
+        r.append(mkInput(it.k, '参数名', v => it.k = v, 'flex:1'), mkInput(it.v, '参数值', v => it.v = v, 'flex:1.6'), rm);
+        body.appendChild(r);
+      });
+      const add = document.createElement('button'); add.type = 'button'; add.className = 've-fmt-btn'; add.textContent = '+ 添加参数行';
+      add.onclick = () => { b.items.push({ k: '', v: '' }); veFlushToMarkdown(); veRender(); };
+      body.appendChild(add);
+    } else if (b.type === 'proscons') {
+      const row = document.createElement('div'); row.className = 've-row'; row.style.alignItems = 'stretch';
+      const p = mkTa(b.pros, '优点（每行一条）…', v => b.pros = v, '84px'); p.style.flex = '1';
+      const c = mkTa(b.cons, '不足（每行一条）…', v => b.cons = v, '84px'); c.style.flex = '1';
+      row.append(p, c); body.appendChild(row);
+    } else if (b.type === 'terminal') {
+      body.append(mkInput(b.cmd, '输入终端命令（如：pip install -r requirements.txt）', v => b.cmd = v, 'font-family:var(--mono);margin-bottom:6px'),
+                  mkTa(b.out, '可选：预期输出结果…', v => b.out = v, '60px', true));
+    } else if (b.type === 'diff' || b.type === 'math' || b.type === 'mermaid' || b.type === 'html') {
+      const phMap = { diff: '每行以 + 开头表示新增、- 开头表示删除…', math: '输入 LaTeX 公式（如 E = mc^2 或 \\int_0^1 x^2 dx）…', mermaid: '输入 Mermaid 图表语法（如 flowchart LR\\n  A --> B）…', html: '输入自定义 HTML 片段…' };
+      body.appendChild(mkTa(b.code, phMap[b.type], v => b.code = v, '88px', true));
+    } else if (b.type === 'kbd') {
+      const r = document.createElement('div'); r.className = 've-row';
+      r.append(mkInput(b.keys, '按键组合（如 Ctrl + Shift + P）', v => b.keys = v, 'flex:1;font-family:var(--mono)'),
+               mkInput(b.desc, '功能说明', v => b.desc = v, 'flex:1.4'));
+      body.appendChild(r);
+    } else if (b.type === 'gallery') {
+      if (!Array.isArray(b.items) || !b.items.length) b.items = [{ url: '', alt: '' }];
+      b.items.forEach((it, ii) => {
+        const r = document.createElement('div'); r.className = 've-row';
+        const pick = document.createElement('button'); pick.type = 'button'; pick.className = 'btn blue';
+        pick.style.cssText = 'flex-shrink:0;padding:0 9px'; pick.textContent = '选图';
+        pick.onclick = () => openCoverPicker((url, fn) => { it.url = url; if (!it.alt) it.alt = fn.replace(/\.[^.]+$/, ''); veFlushToMarkdown(); veRender(); }, true);
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 've-act-btn del'; rm.textContent = '×';
+        rm.onclick = () => { b.items.splice(ii, 1); veFlushToMarkdown(); veRender(); };
+        r.append(mkInput(it.url, '图片 URL', v => it.url = v, 'flex:1.4'), mkInput(it.alt, '说明', v => it.alt = v, 'flex:1'), pick, rm);
+        body.appendChild(r);
+      });
+      const add = document.createElement('button'); add.type = 'button'; add.className = 've-fmt-btn'; add.textContent = '+ 添加图片';
+      add.onclick = () => { b.items.push({ url: '', alt: '' }); veFlushToMarkdown(); veRender(); };
+      body.appendChild(add);
     } else if (b.type === 'table') {
       if (!Array.isArray(b.headers) || !b.headers.length) b.headers = ['列 1', '列 2'];
       if (!Array.isArray(b.rows) || !b.rows.length) b.rows = [b.headers.map(() => '')];
       const cols = b.headers.length;
-      const tblWrap = document.createElement('div');
-      tblWrap.className = 've-table-wrap';
-      const tbl = document.createElement('table');
-      tbl.className = 've-table';
-      const thead = document.createElement('thead');
-      const htr = document.createElement('tr');
+      const tblWrap = document.createElement('div'); tblWrap.className = 've-table-wrap';
+      const tbl = document.createElement('table'); tbl.className = 've-table';
+      const thead = document.createElement('thead'), htr = document.createElement('tr');
       b.headers.forEach((h, ci) => {
         const th = document.createElement('th');
-        const inp = document.createElement('input');
-        inp.value = h || ''; inp.placeholder = `表头 ${ci + 1}`;
-        inp.oninput = () => { b.headers[ci] = inp.value; veFlushToMarkdown(); };
-        th.appendChild(inp); htr.appendChild(th);
+        th.appendChild(mkInput(h, `表头 ${ci + 1}`, v => b.headers[ci] = v)); htr.appendChild(th);
       });
       thead.appendChild(htr);
       const tbody = document.createElement('tbody');
@@ -2426,271 +2600,139 @@ function veRender() {
         const tr = document.createElement('tr');
         for (let ci = 0; ci < cols; ci++) {
           const td = document.createElement('td');
-          const inp = document.createElement('input');
-          inp.value = row[ci] || ''; inp.placeholder = '内容…';
-          inp.oninput = () => { b.rows[ri][ci] = inp.value; veFlushToMarkdown(); };
-          td.appendChild(inp); tr.appendChild(td);
+          td.appendChild(mkInput(row[ci], '内容…', v => b.rows[ri][ci] = v)); tr.appendChild(td);
         }
         tbody.appendChild(tr);
       });
-      tbl.append(thead, tbody);
-      tblWrap.appendChild(tbl);
-      const ctrl = document.createElement('div');
-      ctrl.className = 've-inline-bar';
+      tbl.append(thead, tbody); tblWrap.appendChild(tbl);
+      const ctrl = document.createElement('div'); ctrl.className = 've-inline-bar';
       [
         ['+ 加行', () => { b.rows.push(Array(b.headers.length).fill('')); veFlushToMarkdown(); veRender(); }],
         ['- 删末行', () => { if (b.rows.length > 1) { b.rows.pop(); veFlushToMarkdown(); veRender(); } }],
         ['+ 加列', () => { b.headers.push(`列 ${b.headers.length + 1}`); b.rows.forEach(r => r.push('')); veFlushToMarkdown(); veRender(); }],
         ['- 删末列', () => { if (b.headers.length > 1) { b.headers.pop(); b.rows.forEach(r => r.pop()); veFlushToMarkdown(); veRender(); } }]
-      ].forEach(([label, fn]) => {
-        const btn = document.createElement('button');
-        btn.type = 'button'; btn.className = 've-fmt-btn'; btn.textContent = label;
-        btn.onclick = fn; ctrl.appendChild(btn);
+      ].forEach(([l, fn]) => {
+        const btn = document.createElement('button'); btn.type = 'button'; btn.className = 've-fmt-btn'; btn.textContent = l; btn.onclick = fn; ctrl.appendChild(btn);
       });
       body.append(tblWrap, ctrl);
     } else if (b.type === 'checklist') {
       if (!Array.isArray(b.items) || !b.items.length) b.items = [{ done: false, text: '' }];
       b.items.forEach((it, ii) => {
-        const row = document.createElement('div');
-        row.className = 've-check-row';
-        const ck = document.createElement('input');
-        ck.type = 'checkbox'; ck.checked = !!it.done;
+        const row = document.createElement('div'); row.className = 've-check-row';
+        const ck = document.createElement('input'); ck.type = 'checkbox'; ck.checked = !!it.done;
         ck.onchange = () => { it.done = ck.checked; veFlushToMarkdown(); };
-        const inp = document.createElement('input');
-        inp.value = it.text || ''; inp.placeholder = '输入待办事项…'; inp.style.flex = '1';
-        inp.oninput = () => { it.text = inp.value; veFlushToMarkdown(); };
-        const rm = document.createElement('button');
-        rm.type = 'button'; rm.className = 've-act-btn del'; rm.textContent = '×';
+        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 've-act-btn del'; rm.textContent = '×';
         rm.onclick = () => { b.items.splice(ii, 1); if (!b.items.length) b.items.push({ done: false, text: '' }); veFlushToMarkdown(); veRender(); };
-        row.append(ck, inp, rm);
+        row.append(ck, mkInput(it.text, '输入待办事项…', v => it.text = v, 'flex:1'), rm);
         body.appendChild(row);
       });
-      const addIt = document.createElement('button');
-      addIt.type = 'button'; addIt.className = 've-fmt-btn'; addIt.textContent = '+ 添加待办项';
+      const addIt = document.createElement('button'); addIt.type = 'button'; addIt.className = 've-fmt-btn'; addIt.textContent = '+ 添加待办项';
       addIt.onclick = () => { b.items.push({ done: false, text: '' }); veFlushToMarkdown(); veRender(); };
       body.appendChild(addIt);
     } else if (b.type === 'callout') {
-      const r1 = document.createElement('div');
-      r1.className = 've-row';
-      const sel = document.createElement('select');
-      sel.style.width = '140px';
-      [['NOTE', '提示 (NOTE)'], ['TIP', '技巧 (TIP)'], ['IMPORTANT', '重要 (IMPORTANT)'], ['WARNING', '警告 (WARNING)'], ['CAUTION', '注意 (CAUTION)']].forEach(([v, l]) => {
+      const r1 = document.createElement('div'); r1.className = 've-row';
+      const sel = document.createElement('select'); sel.style.width = '148px';
+      [['NOTE','提示 (NOTE)'],['TIP','技巧 (TIP)'],['IMPORTANT','重要 (IMPORTANT)'],['WARNING','警告 (WARNING)'],['CAUTION','注意 (CAUTION)']].forEach(([v,l]) => {
         const o = document.createElement('option'); o.value = v; o.textContent = l;
-        if ((b.kind || 'NOTE').toUpperCase() === v) o.selected = true;
-        sel.appendChild(o);
+        if ((b.kind || 'NOTE').toUpperCase() === v) o.selected = true; sel.appendChild(o);
       });
       sel.onchange = () => { b.kind = sel.value; veFlushToMarkdown(); };
       r1.appendChild(sel);
-      const ta = document.createElement('textarea');
-      ta.style.minHeight = '64px'; ta.placeholder = '输入提示框正文…';
-      ta.value = b.text || '';
-      ta.oninput = () => { b.text = ta.value; veFlushToMarkdown(); };
-      body.append(r1, ta);
+      body.append(r1, mkTa(b.text, '输入提示框正文…', v => b.text = v, '64px'));
     } else if (b.type === 'details') {
-      const sumInp = document.createElement('input');
-      sumInp.placeholder = '折叠面板标题（点击展开的摘要文字）';
-      sumInp.value = b.summary || '';
-      sumInp.style.marginBottom = '6px';
-      sumInp.oninput = () => { b.summary = sumInp.value; veFlushToMarkdown(); };
-      const ta = document.createElement('textarea');
-      ta.style.minHeight = '72px'; ta.placeholder = '展开后显示的详细内容（支持 Markdown）…';
-      ta.value = b.text || '';
-      ta.oninput = () => { b.text = ta.value; veFlushToMarkdown(); };
-      body.append(sumInp, ta);
+      body.append(mkInput(b.summary, '折叠面板标题', v => b.summary = v, 'margin-bottom:6px'),
+                  mkTa(b.text, '展开后显示的详细内容…', v => b.text = v, '72px'));
     } else if (b.type === 'media') {
-      const r1 = document.createElement('div');
-      r1.className = 've-row';
-      const sel = document.createElement('select');
-      sel.style.width = '126px';
-      [['video', '视频 (video)'], ['audio', '音频 (audio)'], ['iframe', '嵌入 (iframe)']].forEach(([v, l]) => {
+      const r1 = document.createElement('div'); r1.className = 've-row';
+      const sel = document.createElement('select'); sel.style.width = '132px';
+      [['video','视频 (video)'],['audio','音频 (audio)'],['iframe','嵌入 (iframe)']].forEach(([v,l]) => {
         const o = document.createElement('option'); o.value = v; o.textContent = l;
-        if ((b.kind || 'video') === v) o.selected = true;
-        sel.appendChild(o);
+        if ((b.kind || 'video') === v) o.selected = true; sel.appendChild(o);
       });
       sel.onchange = () => { b.kind = sel.value; veFlushToMarkdown(); };
       const urlInp = document.createElement('input');
-      urlInp.placeholder = '媒体地址（支持直接粘贴 B站/YouTube <iframe> 嵌入代码）';
+      urlInp.placeholder = '媒体地址（支持直接粘贴 B站/YouTube <iframe> 代码）';
       urlInp.value = b.url || ''; urlInp.style.flex = '1';
       urlInp.oninput = () => {
         let v = urlInp.value.trim();
         const ifrM = /<iframe\b[^>]*\bsrc=["']([^"']+)["']/i.exec(v);
-        if (ifrM) {
-          v = ifrM[1].startsWith('//') ? 'https:' + ifrM[1] : ifrM[1];
-          urlInp.value = v;
-          b.kind = 'iframe';
-          sel.value = 'iframe';
-        }
-        b.url = v;
-        veFlushToMarkdown();
+        if (ifrM) { v = ifrM[1].startsWith('//') ? 'https:' + ifrM[1] : ifrM[1]; urlInp.value = v; b.kind = 'iframe'; sel.value = 'iframe'; }
+        b.url = v; veFlushToMarkdown();
       };
-      const pickBtn = document.createElement('button');
-      pickBtn.type = 'button'; pickBtn.className = 'btn blue';
+      const pickBtn = document.createElement('button'); pickBtn.type = 'button'; pickBtn.className = 'btn blue';
       pickBtn.style.cssText = 'flex-shrink:0;padding:0 10px'; pickBtn.textContent = '素材库';
       pickBtn.onclick = () => openCoverPicker((url, fname) => {
         b.url = url;
         if (/\.(mp3|wav|flac|ogg|m4a|aac|opus)$/i.test(fname || url)) b.kind = 'audio';
         else if (/\.(mp4|webm|mov|mkv)$/i.test(fname || url)) b.kind = 'video';
-        veFlushToMarkdown();
-        veRender();
+        veFlushToMarkdown(); veRender();
       }, false);
-      r1.append(sel, urlInp, pickBtn);
-      body.appendChild(r1);
-    } else if (b.type === 'math' || b.type === 'html') {
-      const ta = document.createElement('textarea');
-      ta.style.cssText = 'min-height:84px;font-family:var(--mono);font-size:.78rem';
-      ta.placeholder = b.type === 'math' ? '输入 LaTeX 公式（如 E = mc^2）…' : '输入自定义 HTML 片段…';
-      ta.value = b.code || '';
-      ta.oninput = () => { b.code = ta.value; veFlushToMarkdown(); };
-      body.appendChild(ta);
+      r1.append(sel, urlInp, pickBtn); body.appendChild(r1);
     } else if (b.type === 'image') {
-      const r1 = document.createElement('div');
-      r1.className = 've-row';
-      const urlInp = document.createElement('input');
-      urlInp.placeholder = '图片地址 (/assets/xxx.webp 或 https://...)';
-      urlInp.value = b.url || '';
-      urlInp.style.flex = '1';
-      const pickBtn = document.createElement('button');
-      pickBtn.type = 'button';
-      pickBtn.className = 'btn blue';
-      pickBtn.style.cssText = 'flex-shrink:0;padding:0 10px';
-      pickBtn.textContent = '素材库';
-      const altInp = document.createElement('input');
-      altInp.placeholder = '图片说明 / Alt（可选）';
-      altInp.value = b.alt || '';
-      const imgPrev = document.createElement('img');
-      imgPrev.className = 've-img-preview';
-      imgPrev.style.display = b.url ? 'block' : 'none';
-      if (b.url) imgPrev.src = b.url;
-      urlInp.oninput = () => {
-        b.url = urlInp.value;
-        imgPrev.src = b.url;
-        imgPrev.style.display = b.url.trim() ? 'block' : 'none';
-        veFlushToMarkdown();
-      };
-      altInp.oninput = () => { b.alt = altInp.value; veFlushToMarkdown(); };
-      pickBtn.onclick = () => openCoverPicker((url, fname) => {
-        b.url = url;
-        if (!b.alt) b.alt = fname.replace(/\.[^.]+$/, '');
-        veFlushToMarkdown();
-        veRender();
-      }, true);
+      const r1 = document.createElement('div'); r1.className = 've-row';
+      const imgPrev = document.createElement('img'); imgPrev.className = 've-img-preview';
+      imgPrev.style.display = b.url ? 'block' : 'none'; if (b.url) imgPrev.src = b.url;
+      const urlInp = mkInput(b.url, '图片地址 (/assets/xxx.webp 或 https://...)', v => { b.url = v; imgPrev.src = v; imgPrev.style.display = v.trim() ? 'block' : 'none'; }, 'flex:1');
+      const pickBtn = document.createElement('button'); pickBtn.type = 'button'; pickBtn.className = 'btn blue';
+      pickBtn.style.cssText = 'flex-shrink:0;padding:0 10px'; pickBtn.textContent = '素材库';
+      pickBtn.onclick = () => openCoverPicker((url, fname) => { b.url = url; if (!b.alt) b.alt = fname.replace(/\.[^.]+$/, ''); veFlushToMarkdown(); veRender(); }, true);
       r1.append(urlInp, pickBtn);
-      body.append(r1, altInp, imgPrev);
+      body.append(r1, mkInput(b.alt, '图片说明 / Alt（可选）', v => b.alt = v), imgPrev);
     } else if (b.type === 'attachment') {
-      const r1 = document.createElement('div');
-      r1.className = 've-row';
-      const nameInp = document.createElement('input');
-      nameInp.placeholder = '附件显示名称（如：配置文件.zip）';
-      nameInp.value = b.name || '';
-      nameInp.style.flex = '1';
-      const pickBtn = document.createElement('button');
-      pickBtn.type = 'button';
-      pickBtn.className = 'btn blue';
-      pickBtn.style.cssText = 'flex-shrink:0;padding:0 10px';
-      pickBtn.textContent = '选附件';
-      const urlInp = document.createElement('input');
-      urlInp.placeholder = '附件链接 (/assets/xxx.zip 或 https://...)';
-      urlInp.value = b.url || '';
-      nameInp.oninput = () => { b.name = nameInp.value; veFlushToMarkdown(); };
-      urlInp.oninput = () => { b.url = urlInp.value; veFlushToMarkdown(); };
-      pickBtn.onclick = () => openCoverPicker((url, fname) => {
-        b.url = url;
-        if (!b.name) b.name = fname;
-        veFlushToMarkdown();
-        veRender();
-      }, false);
-      r1.append(nameInp, pickBtn);
-      body.append(r1, urlInp);
+      const r1 = document.createElement('div'); r1.className = 've-row';
+      const pickBtn = document.createElement('button'); pickBtn.type = 'button'; pickBtn.className = 'btn blue';
+      pickBtn.style.cssText = 'flex-shrink:0;padding:0 10px'; pickBtn.textContent = '选附件';
+      pickBtn.onclick = () => openCoverPicker((url, fname) => { b.url = url; if (!b.name) b.name = fname; veFlushToMarkdown(); veRender(); }, false);
+      r1.append(mkInput(b.name, '附件显示名称（如：配置文件.zip）', v => b.name = v, 'flex:1'), pickBtn);
+      body.append(r1, mkInput(b.url, '附件链接 (/assets/xxx.zip 或 https://...)', v => b.url = v));
     } else if (b.type === 'link') {
-      const r1 = document.createElement('div');
-      r1.className = 've-row';
-      const txtInp = document.createElement('input');
-      txtInp.placeholder = '链接显示文字';
-      txtInp.value = b.text || '';
-      txtInp.style.flex = '1';
-      const urlInp = document.createElement('input');
-      urlInp.placeholder = '目标 URL (https://...)';
-      urlInp.value = b.url || '';
-      urlInp.style.flex = '1.4';
-      txtInp.oninput = () => { b.text = txtInp.value; veFlushToMarkdown(); };
-      urlInp.oninput = () => { b.url = urlInp.value; veFlushToMarkdown(); };
-      r1.append(txtInp, urlInp);
+      const r1 = document.createElement('div'); r1.className = 've-row';
+      r1.append(mkInput(b.text, '链接显示文字', v => b.text = v, 'flex:1'), mkInput(b.url, '目标 URL (https://...)', v => b.url = v, 'flex:1.4'));
       body.appendChild(r1);
     } else if (b.type === 'code') {
-      const langInp = document.createElement('input');
-      langInp.placeholder = '语言标识（如 python / bash / js，可选）';
-      langInp.value = b.lang || '';
-      langInp.style.marginBottom = '6px';
-      const codeTa = document.createElement('textarea');
-      codeTa.style.cssText = 'min-height:96px;font-family:var(--mono);font-size:.78rem';
-      codeTa.placeholder = '粘贴或输入代码…';
-      codeTa.value = b.code || '';
-      langInp.oninput = () => { b.lang = langInp.value; veFlushToMarkdown(); };
-      codeTa.oninput = () => { b.code = codeTa.value; veFlushToMarkdown(); };
-      body.append(langInp, codeTa);
+      body.append(mkInput(b.lang, '语言标识（如 python / bash / js）', v => b.lang = v, 'margin-bottom:6px'),
+                  mkTa(b.code, '粘贴或输入代码…', v => b.code = v, '96px', true));
     } else if (b.type === 'list') {
-      const r1 = document.createElement('div');
-      r1.className = 've-row';
-      const sel = document.createElement('select');
-      sel.style.width = '110px';
+      const r1 = document.createElement('div'); r1.className = 've-row';
+      const sel = document.createElement('select'); sel.style.width = '118px';
       sel.innerHTML = '<option value="ul">无序列表 (-)</option><option value="ol">有序列表 (1.)</option>';
       sel.value = b.ordered ? 'ol' : 'ul';
       sel.onchange = () => { b.ordered = sel.value === 'ol'; veFlushToMarkdown(); };
       r1.appendChild(sel);
-      const ta = document.createElement('textarea');
-      ta.style.minHeight = '76px';
-      ta.placeholder = '每行一个列表项…';
-      ta.value = b.text || '';
-      ta.oninput = () => { b.text = ta.value; veFlushToMarkdown(); };
-      body.append(r1, ta);
+      body.append(r1, mkTa(b.text, '每行一个列表项…', v => b.text = v, '76px'));
     } else if (b.type === 'divider') {
       body.innerHTML = '<hr style="border:none;border-top:1px solid var(--border);margin:6px 0">';
     }
     el.appendChild(body);
 
-    // Drag-and-drop reorder & palette drop target
     el.addEventListener('dragstart', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
-        e.preventDefault(); return;
-      }
-      veDragSrcIndex = idx;
-      veDragPaletteType = null;
-      el.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) { e.preventDefault(); return; }
+      veDragSrcIndex = idx; veDragPaletteType = null; el.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move';
     });
     el.addEventListener('dragend', () => {
-      el.classList.remove('dragging');
-      veDragSrcIndex = null;
+      el.classList.remove('dragging'); veDragSrcIndex = null;
       canvas.querySelectorAll('.ve-block').forEach(x => x.classList.remove('drop-before', 'drop-after'));
     });
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       const rect = el.getBoundingClientRect();
       const before = (e.clientY - rect.top) < rect.height / 2;
-      el.classList.toggle('drop-before', before);
-      el.classList.toggle('drop-after', !before);
+      el.classList.toggle('drop-before', before); el.classList.toggle('drop-after', !before);
     });
-    el.addEventListener('dragleave', () => {
-      el.classList.remove('drop-before', 'drop-after');
-    });
+    el.addEventListener('dragleave', () => { el.classList.remove('drop-before', 'drop-after'); });
     el.addEventListener('drop', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
       const rect = el.getBoundingClientRect();
       const before = (e.clientY - rect.top) < rect.height / 2;
       el.classList.remove('drop-before', 'drop-after');
       let targetIdx = before ? idx : idx + 1;
       if (veDragPaletteType) {
-        const t = veDragPaletteType;
-        veDragPaletteType = null;
-        veAddBlock(t, targetIdx);
+        const t = veDragPaletteType; veDragPaletteType = null; veAddBlock(t, targetIdx);
       } else if (veDragSrcIndex !== null && veDragSrcIndex !== idx) {
         const [moved] = veBlocks.splice(veDragSrcIndex, 1);
         if (veDragSrcIndex < targetIdx) targetIdx--;
         veBlocks.splice(targetIdx, 0, moved);
-        veDragSrcIndex = null;
-        veFlushToMarkdown();
-        veRender();
+        veDragSrcIndex = null; veFlushToMarkdown(); veRender();
       }
     });
 
@@ -2699,34 +2741,14 @@ function veRender() {
 }
 
 (function initVisualEditorDnD() {
-  const palette = document.getElementById('ve-palette');
+  veRenderPalette();
   const canvas = document.getElementById('ve-canvas');
-  if (palette) {
-    palette.querySelectorAll('.ve-pal-item').forEach(item => {
-      item.addEventListener('dragstart', (e) => {
-        veDragPaletteType = item.dataset.btype;
-        veDragSrcIndex = null;
-        e.dataTransfer.effectAllowed = 'copy';
-      });
-      item.addEventListener('dragend', () => { veDragPaletteType = null; });
-    });
-  }
   if (canvas) {
-    canvas.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      canvas.classList.add('drag-over');
-    });
-    canvas.addEventListener('dragleave', (e) => {
-      if (!canvas.contains(e.relatedTarget)) canvas.classList.remove('drag-over');
-    });
+    canvas.addEventListener('dragover', (e) => { e.preventDefault(); canvas.classList.add('drag-over'); });
+    canvas.addEventListener('dragleave', (e) => { if (!canvas.contains(e.relatedTarget)) canvas.classList.remove('drag-over'); });
     canvas.addEventListener('drop', (e) => {
-      e.preventDefault();
-      canvas.classList.remove('drag-over');
-      if (veDragPaletteType) {
-        const t = veDragPaletteType;
-        veDragPaletteType = null;
-        veAddBlock(t);
-      }
+      e.preventDefault(); canvas.classList.remove('drag-over');
+      if (veDragPaletteType) { const t = veDragPaletteType; veDragPaletteType = null; veAddBlock(t); }
     });
   }
 })();

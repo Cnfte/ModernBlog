@@ -2414,39 +2414,139 @@
                 h.appendChild(btn);
             });
 
-            // 8. 按需懒加载 KaTeX 渲染数学公式（仅当文章包含公式时才加载，零额外首屏开销）
-            const hasMath = body.querySelector('.post-math-block') || /\$\$[\s\S]+?\$\$/.test(body.textContent || '');
-            if (hasMath) {
-                const runKatex = () => {
-                    if (typeof window.renderMathInElement === 'function') {
-                        window.renderMathInElement(body, {
-                            delimiters: [
-                                { left: '$$', right: '$$', display: true },
-                                { left: '$', right: '$', display: false }
-                            ],
-                            throwOnError: false
+            // 8. 剧透遮罩点击展开 + 终端命令块一键复制
+            body.querySelectorAll('.mb-spoiler').forEach(sp => {
+                sp.addEventListener('click', () => {
+                    const shown = sp.classList.toggle('revealed');
+                    const hint = sp.querySelector('.mb-spoiler-hint');
+                    if (hint) hint.textContent = shown ? '点击再次隐藏' : '剧透内容 · 点击查看';
+                });
+            });
+            body.querySelectorAll('.mb-terminal').forEach(term => {
+                const head = term.querySelector('.mb-term-head');
+                const cmdEl = term.querySelector('.mb-term-cmd');
+                if (!head || !cmdEl || head.querySelector('.post-code-btn')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'post-code-btn';
+                btn.textContent = '复制命令';
+                btn.addEventListener('click', () => {
+                    copyText(cmdEl.textContent || '').then(() => {
+                        btn.textContent = '已复制';
+                        btn.classList.add('copied');
+                        showToast('命令已复制到剪贴板');
+                        setTimeout(() => { btn.textContent = '复制命令'; btn.classList.remove('copied'); }, 1800);
+                    });
+                });
+                head.appendChild(btn);
+            });
+
+            // 9. 多 CDN 容灾按需加载 KaTeX 渲染数学公式（支持直接 katex.render + 行内公式）
+            function loadScriptSequential(urls, onOk) {
+                let idx = 0;
+                const next = () => {
+                    if (idx >= urls.length) return;
+                    const s = document.createElement('script');
+                    s.src = urls[idx++];
+                    s.onload = () => onOk && onOk();
+                    s.onerror = next;
+                    document.head.appendChild(s);
+                };
+                next();
+            }
+            function loadCssFirst(urls) {
+                let idx = 0;
+                const next = () => {
+                    if (idx >= urls.length) return;
+                    const l = document.createElement('link');
+                    l.rel = 'stylesheet';
+                    l.href = urls[idx++];
+                    l.onerror = next;
+                    document.head.appendChild(l);
+                };
+                next();
+            }
+
+            const mathBlocks = body.querySelectorAll('.post-math-block');
+            const mathInlines = body.querySelectorAll('.post-math-inline');
+            if (mathBlocks.length || mathInlines.length) {
+                const renderAllMath = () => {
+                    if (!window.katex) return;
+                    body.querySelectorAll('.post-math-block').forEach(el => {
+                        if (el.dataset.rendered) return;
+                        const expr = (el.dataset.math || el.textContent || '').replace(/^\$\$|\$\$$/g, '').trim();
+                        if (!expr) return;
+                        try {
+                            window.katex.render(expr, el, { displayMode: true, throwOnError: false });
+                            el.dataset.rendered = '1';
+                        } catch (_) { }
+                    });
+                    body.querySelectorAll('.post-math-inline').forEach(el => {
+                        if (el.dataset.rendered) return;
+                        const expr = (el.textContent || '').replace(/^\$|\$$/g, '').trim();
+                        if (!expr) return;
+                        try {
+                            window.katex.render(expr, el, { displayMode: false, throwOnError: false });
+                            el.dataset.rendered = '1';
+                        } catch (_) { }
+                    });
+                };
+                if (window.katex) {
+                    renderAllMath();
+                } else {
+                    window.__cnfteKatexCbs = window.__cnfteKatexCbs || [];
+                    window.__cnfteKatexCbs.push(renderAllMath);
+                    if (!window.__cnfteKatexLoading) {
+                        window.__cnfteKatexLoading = true;
+                        loadCssFirst([
+                            'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css',
+                            'https://unpkg.com/katex@0.16.11/dist/katex.min.css'
+                        ]);
+                        loadScriptSequential([
+                            'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js',
+                            'https://unpkg.com/katex@0.16.11/dist/katex.min.js'
+                        ], () => {
+                            (window.__cnfteKatexCbs || []).forEach(fn => { try { fn(); } catch (_) { } });
+                            window.__cnfteKatexCbs = [];
                         });
                     }
+                }
+            }
+
+            // 10. 多 CDN 容灾按需加载 Mermaid 渲染流程图 / 时序图
+            const mermaidEls = body.querySelectorAll('.mb-mermaid');
+            if (mermaidEls.length) {
+                const renderMermaid = () => {
+                    if (!window.mermaid) return;
+                    if (!window.__cnfteMermaidInited) {
+                        window.__cnfteMermaidInited = true;
+                        window.mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+                    }
+                    body.querySelectorAll('.mb-mermaid:not([data-rendered])').forEach((el, idx) => {
+                        const code = (el.dataset.code || el.textContent || '').trim();
+                        if (!code) return;
+                        el.dataset.rendered = '1';
+                        const id = 'mb-mmd-' + Date.now() + '-' + idx;
+                        Promise.resolve(window.mermaid.render(id, code)).then(res => {
+                            el.innerHTML = (res && res.svg) ? res.svg : String(res || '');
+                        }).catch(() => { el.dataset.rendered = ''; });
+                    });
                 };
-                if (typeof window.renderMathInElement === 'function') {
-                    runKatex();
-                } else if (!window.__cnfteKatexLoading) {
-                    window.__cnfteKatexLoading = true;
-                    const link = document.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
-                    document.head.appendChild(link);
-                    const s1 = document.createElement('script');
-                    s1.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
-                    s1.onload = () => {
-                        const s2 = document.createElement('script');
-                        s2.src = 'https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js';
-                        s2.onload = runKatex;
-                        document.head.appendChild(s2);
-                    };
-                    document.head.appendChild(s1);
+                if (window.mermaid) {
+                    renderMermaid();
                 } else {
-                    setTimeout(runKatex, 600);
+                    window.__cnfteMermaidCbs = window.__cnfteMermaidCbs || [];
+                    window.__cnfteMermaidCbs.push(renderMermaid);
+                    if (!window.__cnfteMermaidLoading) {
+                        window.__cnfteMermaidLoading = true;
+                        loadScriptSequential([
+                            'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js',
+                            'https://unpkg.com/mermaid@10/dist/mermaid.min.js'
+                        ], () => {
+                            (window.__cnfteMermaidCbs || []).forEach(fn => { try { fn(); } catch (_) { } });
+                            window.__cnfteMermaidCbs = [];
+                        });
+                    }
                 }
             }
         }

@@ -138,7 +138,10 @@ def _get_meta_desc(content: str, custom: str, length=155) -> str:
 
 
 def _render_md(content: str) -> tuple[str, str]:
-    # 保护代码块与块级 LaTeX 公式不被 Markdown 误解析（例如公式里的 _ 或 ^）
+    # 统一换行符，防止 Windows CRLF 导致块级正则匹配失败
+    content = (content or '').replace('\r\n', '\n').replace('\r', '\n')
+
+    # 保护代码块、已封装的自定义 mb-* HTML 块与公式不被 Markdown 误解析
     protected: list[str] = []
     def _stash(raw: str) -> str:
         idx = len(protected)
@@ -149,16 +152,27 @@ def _render_md(content: str) -> tuple[str, str]:
     tmp = re.sub(r'```[\s\S]*?```', lambda m: _stash(m.group(0)), content)
     tmp = re.sub(r'`[^`\n]+`', lambda m: _stash(m.group(0)), tmp)
 
-    # 2. 保护块级数学公式 $$...$$，最终原样交给前端 KaTeX 渲染
+    # 2. 保护块级数学公式（同时支持多行 $$\n...\n$$ 与单行 $$...$$）
     math_blocks: list[str] = []
     def _stash_math(m):
         idx = len(math_blocks)
         math_blocks.append(m.group(1).strip())
         return f"\n\n@@MATHBLK{idx}@@\n\n"
     tmp = re.sub(r'(?m)^\$\$\s*\n([\s\S]*?)\n\$\$\s*$', _stash_math, tmp)
+    tmp = re.sub(r'(?m)^\$\$([^\n$]+?)\$\$\s*$', _stash_math, tmp)
 
-    # 3. 支持 GFM 删除线 ~~text~~ -> <del>text</del>
+    # 3. 保护行内数学公式 $...$（避免内部 _ 或 ^ 被 Markdown 解析成斜体）
+    inline_maths: list[str] = []
+    def _stash_inline_math(m):
+        idx = len(inline_maths)
+        inline_maths.append(m.group(1))
+        return f"@@INMATH{idx}@@"
+    tmp = re.sub(r'(?<!\$)\$(?!\s)([^\n$]+?)(?<!\s)\$(?!\$)', _stash_inline_math, tmp)
+
+    # 4. 支持 GFM 删除线 ~~text~~、高亮 ==text==、下划线 ++text++
     tmp = re.sub(r'~~(?=\S)(.+?)(?<=\S)~~', r'<del>\1</del>', tmp)
+    tmp = re.sub(r'==(?=\S)(.+?)(?<=\S)==', r'<mark>\1</mark>', tmp)
+    tmp = re.sub(r'\+\+(?=\S)(.+?)(?<=\S)\+\+', r'<u>\1</u>', tmp)
 
     # 还原被保护的代码块以便 Python-Markdown 正常高亮
     for idx, raw in enumerate(protected):
@@ -167,18 +181,23 @@ def _render_md(content: str) -> tuple[str, str]:
     md = markdown.Markdown(extensions=MD_EXTENSIONS, extension_configs=MD_EXT_CONFIGS)
     html = md.convert(tmp)
 
-    # 还原块级数学公式容器
+    # 还原块级数学公式容器（带 data-math 属性便于前端 KaTeX 精准渲染）
     for idx, expr in enumerate(math_blocks):
         safe_expr = expr.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-        html = html.replace(
-            f'<p>@@MATHBLK{idx}@@</p>',
-            f'<div class="post-math-block">$$\n{safe_expr}\n$$</div>'
-        ).replace(
-            f'@@MATHBLK{idx}@@',
-            f'<div class="post-math-block">$$\n{safe_expr}\n$$</div>'
-        )
+        block_html = f'<div class="post-math-block" data-math="{safe_expr.replace(chr(34), "&quot;")}">$$\n{safe_expr}\n$$</div>'
+        html = html.replace(f'<p>@@MATHBLK{idx}@@</p>', block_html).replace(f'@@MATHBLK{idx}@@', block_html)
 
-    # 4. 支持 GFM 待办清单 - [x] / - [ ]
+    # 还原行内数学公式
+    for idx, expr in enumerate(inline_maths):
+        safe_expr = expr.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        html = html.replace(f'@@INMATH{idx}@@', f'<span class="post-math-inline">${safe_expr}$</span>')
+
+    # 5. 支持 GFM 待办清单 - [x] / - [ ]（兼容紧凑列表与松散列表 <li><p>...</p></li>）
+    html = re.sub(
+        r'<li>\s*<p>\s*\[([ xX])\]\s+([\s\S]*?)</p>\s*</li>',
+        lambda m: f'<li class="task-item"><input type="checkbox" disabled{" checked" if m.group(1).lower()=="x" else ""}> {m.group(2)}</li>',
+        html
+    )
     html = re.sub(
         r'<li>\s*\[([ xX])\]\s+',
         lambda m: f'<li class="task-item"><input type="checkbox" disabled{" checked" if m.group(1).lower()=="x" else ""}> ',
