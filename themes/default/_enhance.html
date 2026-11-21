@@ -1255,7 +1255,7 @@
                 current += (target - current) * DAMPING;
                 if (Math.abs(target - current) < 0.4) current = target;
                 selfTriggered = true;
-                window.scrollTo(0, current);
+                window.scrollTo({ top: current, left: 0, behavior: 'instant' });
                 if (current !== target) {
                     raf = requestAnimationFrame(tick);
                 } else {
