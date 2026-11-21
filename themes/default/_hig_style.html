@@ -960,6 +960,9 @@
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
         -ms-overflow-style: none;
+        /* 为边缘热力块放大 + 选中边框预留安全内边距，防止顶部/左右/底部被裁切 */
+        padding: 5px;
+        margin: -5px;
     }
     .heatmap-scroll::-webkit-scrollbar {
         display: none;
@@ -982,19 +985,23 @@
         aspect-ratio: 1;
         border-radius: 2.5px;
         background: rgba(255, 255, 255, 0.065);
+        cursor: pointer;
         transition: transform .15s var(--ease-spring), outline-color .15s;
     }
     .heatmap-legend .hm-cell {
         inline-size: 10px;
         block-size: 10px;
+        cursor: default;
     }
     .hm-cell[data-level="1"] { background: color-mix(in srgb, var(--accent) 30%, rgba(255, 255, 255, 0.06)); }
     .hm-cell[data-level="2"] { background: color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.06)); }
     .hm-cell[data-level="3"] { background: color-mix(in srgb, var(--accent) 78%, rgba(255, 255, 255, 0.06)); }
     .hm-cell[data-level="4"] { background: var(--accent); }
-    .heatmap-grid .hm-cell:hover {
-        transform: scale(1.35);
-        outline: 1px solid rgba(255, 255, 255, 0.55);
+    .heatmap-grid .hm-cell:hover,
+    .heatmap-grid .hm-cell.selected {
+        transform: scale(1.32);
+        outline: 1.5px solid rgba(255, 255, 255, 0.78);
+        outline-offset: 0.5px;
         position: relative;
         z-index: 2;
     }
@@ -1004,8 +1011,16 @@
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        font-size: 0.72rem;
+        font-size: 0.74rem;
         color: var(--label-tertiary);
+    }
+    .heatmap-source {
+        font-variant-numeric: tabular-nums;
+        transition: color .18s var(--ease-std);
+    }
+    .heatmap-source.active {
+        color: var(--label-primary);
+        font-weight: 600;
     }
     .heatmap-legend {
         display: inline-flex;

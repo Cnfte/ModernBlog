@@ -2018,13 +2018,17 @@
 
             function renderCells(days, totalCount, isFallback) {
                 if (!grid.isConnected) return;
+                const defaultCaption = isFallback ? '已自动切换为本站文章发布活跃度' : '数据同步自 GitHub Contributions';
                 const frag = document.createDocumentFragment();
                 for (let i = 0; i < days.length; i++) {
                     const d = days[i];
                     const cell = document.createElement('span');
+                    const info = `${d.date} · ${d.count} ${isFallback ? '篇文章' : '次贡献'}`;
                     cell.className = 'hm-cell';
                     cell.dataset.level = String(d.level || 0);
-                    cell.title = `${d.date} · ${d.count} ${isFallback ? '篇文章' : '次贡献'}`;
+                    cell.dataset.info = info;
+                    cell.title = info;
+                    cell.setAttribute('aria-label', info);
                     frag.appendChild(cell);
                 }
                 grid.innerHTML = '';
@@ -2034,11 +2038,47 @@
                         ? `近一年 ${totalCount} 篇更新`
                         : `${totalCount.toLocaleString()} 次贡献 · 近一年`;
                 }
-                if (isFallback) {
-                    if (titleEl) titleEl.textContent = '博客更新热力图';
-                    if (sourceEl) sourceEl.textContent = '已自动切换为本站文章发布活跃度';
-                } else {
-                    if (sourceEl) sourceEl.textContent = '数据同步自 GitHub Contributions';
+                if (isFallback && titleEl) titleEl.textContent = '博客更新热力图';
+                if (sourceEl) {
+                    sourceEl.textContent = defaultCaption;
+                    sourceEl.classList.remove('active');
+                }
+                // 桌面端悬停 + 移动端点击即时显示日期与贡献数（事件委托，零额外监听开销）
+                let selectedCell = null;
+                const showInfo = (cell) => {
+                    if (!sourceEl) return;
+                    if (cell && cell.dataset.info) {
+                        sourceEl.textContent = cell.dataset.info;
+                        sourceEl.classList.add('active');
+                    } else {
+                        sourceEl.textContent = defaultCaption;
+                        sourceEl.classList.remove('active');
+                    }
+                };
+                if (!grid._hmInteractive) {
+                    grid._hmInteractive = true;
+                    grid.addEventListener('pointerover', (e) => {
+                        if (e.pointerType === 'touch') return;
+                        const cell = e.target.closest('.hm-cell');
+                        if (cell) showInfo(cell);
+                    });
+                    grid.addEventListener('pointerleave', () => {
+                        showInfo(selectedCell);
+                    });
+                    grid.addEventListener('click', (e) => {
+                        const cell = e.target.closest('.hm-cell');
+                        if (!cell) return;
+                        if (selectedCell === cell) {
+                            cell.classList.remove('selected');
+                            selectedCell = null;
+                            showInfo(null);
+                        } else {
+                            if (selectedCell) selectedCell.classList.remove('selected');
+                            cell.classList.add('selected');
+                            selectedCell = cell;
+                            showInfo(cell);
+                        }
+                    });
                 }
                 // 自动滚到最新一列（最右侧）
                 if (grid.parentElement) {
