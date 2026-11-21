@@ -565,6 +565,57 @@ tr.selected td{background:rgba(56,189,248,0.08);color:var(--text)}
   border: 1px solid var(--border);
   display: block;
 }
+.ve-inline-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.ve-fmt-btn {
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--dim);
+  font-size: .7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ve-fmt-btn:hover { color: var(--text); border-color: var(--accent); }
+.ve-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 6px;
+}
+.ve-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .78rem;
+}
+.ve-table th, .ve-table td {
+  border: 1px solid var(--border);
+  padding: 4px;
+  background: var(--input-bg);
+}
+.ve-table th { background: rgba(255,255,255,.06); }
+.ve-table input {
+  width: 100%;
+  border: none !important;
+  background: transparent !important;
+  padding: 4px 6px !important;
+  font-size: .78rem !important;
+}
+.ve-check-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+.ve-check-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
 </style>
 </head>
 <body>
@@ -716,6 +767,9 @@ tr.selected td{background:rgba(56,189,248,0.08);color:var(--text)}
             <div class="ve-pal-item" draggable="true" data-btype="paragraph" onclick="veAddBlock('paragraph')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="15" y2="18"/></svg>文本
             </div>
+            <div class="ve-pal-item" draggable="true" data-btype="table" onclick="veAddBlock('table')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>表格
+            </div>
             <div class="ve-pal-item" draggable="true" data-btype="image" onclick="veAddBlock('image')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>图片
             </div>
@@ -725,14 +779,32 @@ tr.selected td{background:rgba(56,189,248,0.08);color:var(--text)}
             <div class="ve-pal-item" draggable="true" data-btype="link" onclick="veAddBlock('link')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>链接
             </div>
-            <div class="ve-pal-item" draggable="true" data-btype="quote" onclick="veAddBlock('quote')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/></svg>引用
-            </div>
             <div class="ve-pal-item" draggable="true" data-btype="code" onclick="veAddBlock('code')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>代码块
             </div>
             <div class="ve-pal-item" draggable="true" data-btype="list" onclick="veAddBlock('list')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>列表
+            </div>
+            <div class="ve-pal-item" draggable="true" data-btype="checklist" onclick="veAddBlock('checklist')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>待办清单
+            </div>
+            <div class="ve-pal-item" draggable="true" data-btype="quote" onclick="veAddBlock('quote')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/></svg>引用
+            </div>
+            <div class="ve-pal-item" draggable="true" data-btype="callout" onclick="veAddBlock('callout')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>提示框
+            </div>
+            <div class="ve-pal-item" draggable="true" data-btype="details" onclick="veAddBlock('details')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="6 9 12 15 18 9"/></svg>折叠面板
+            </div>
+            <div class="ve-pal-item" draggable="true" data-btype="media" onclick="veAddBlock('media')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>视频/音频
+            </div>
+            <div class="ve-pal-item" draggable="true" data-btype="math" onclick="veAddBlock('math')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16l-8 8 8 8H4"/></svg>数学公式
+            </div>
+            <div class="ve-pal-item" draggable="true" data-btype="html" onclick="veAddBlock('html')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 9l-3 3 3 3"/><path d="M16 9l3 3-3 3"/></svg>HTML嵌入
             </div>
             <div class="ve-pal-item" draggable="true" data-btype="divider" onclick="veAddBlock('divider')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="3" y1="12" x2="21" y2="12"/></svg>分隔线
@@ -1623,27 +1695,45 @@ let veDragPaletteType = null;
 const VE_LABELS = {
   heading: '标题',
   paragraph: '文本',
+  table: '表格',
   image: '图片',
   attachment: '附件',
   link: '链接',
-  quote: '引用',
   code: '代码块',
   list: '列表',
+  checklist: '待办清单',
+  quote: '引用',
+  callout: '提示框',
+  details: '折叠面板',
+  media: '视频/音频',
+  math: '数学公式',
+  html: 'HTML嵌入',
   divider: '分隔线'
 };
 
 function veCreateBlock(type) {
   switch (type) {
     case 'heading': return { type: 'heading', level: 2, text: '' };
+    case 'table': return { type: 'table', headers: ['列 1', '列 2', '列 3'], rows: [['', '', ''], ['', '', '']] };
     case 'image': return { type: 'image', alt: '', url: '' };
     case 'attachment': return { type: 'attachment', name: '', url: '' };
     case 'link': return { type: 'link', text: '', url: '' };
     case 'quote': return { type: 'quote', text: '' };
+    case 'callout': return { type: 'callout', kind: 'NOTE', text: '' };
+    case 'details': return { type: 'details', summary: '点击展开详情', text: '' };
     case 'code': return { type: 'code', lang: '', code: '' };
     case 'list': return { type: 'list', ordered: false, text: '' };
+    case 'checklist': return { type: 'checklist', items: [{ done: false, text: '' }] };
+    case 'media': return { type: 'media', kind: 'video', url: '', title: '' };
+    case 'math': return { type: 'math', code: '' };
+    case 'html': return { type: 'html', code: '' };
     case 'divider': return { type: 'divider' };
     default: return { type: 'paragraph', text: '' };
   }
+}
+
+function veEscapePipe(s) {
+  return String(s ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ');
 }
 
 function veBlocksToMarkdown(blocks) {
@@ -1655,6 +1745,16 @@ function veBlocksToMarkdown(blocks) {
     } else if (b.type === 'paragraph') {
       const t = (b.text || '').trim();
       if (t) parts.push(t);
+    } else if (b.type === 'table') {
+      const cols = Math.max(1, (b.headers || []).length);
+      const hdr = Array.from({ length: cols }, (_, i) => veEscapePipe((b.headers || [])[i] || `列${i + 1}`));
+      const sep = Array.from({ length: cols }, () => '---');
+      const lines = ['| ' + hdr.join(' | ') + ' |', '| ' + sep.join(' | ') + ' |'];
+      (b.rows || []).forEach(r => {
+        const cells = Array.from({ length: cols }, (_, i) => veEscapePipe((r || [])[i] || ''));
+        lines.push('| ' + cells.join(' | ') + ' |');
+      });
+      parts.push(lines.join('\n'));
     } else if (b.type === 'image') {
       const u = (b.url || '').trim();
       if (u) parts.push(`![${(b.alt || '').trim()}](${u})`);
@@ -1669,6 +1769,14 @@ function veBlocksToMarkdown(blocks) {
     } else if (b.type === 'quote') {
       const t = (b.text || '').trim();
       if (t) parts.push(t.split('\n').map(l => '> ' + l).join('\n'));
+    } else if (b.type === 'callout') {
+      const kind = (b.kind || 'NOTE').toUpperCase();
+      const t = (b.text || '').trim();
+      if (t) parts.push(`> [!${kind}]\n` + t.split('\n').map(l => '> ' + l).join('\n'));
+    } else if (b.type === 'details') {
+      const sum = (b.summary || '展开详情').trim();
+      const t = (b.text || '').trim();
+      parts.push(`<details>\n<summary>${sum}</summary>\n\n${t}\n\n</details>`);
     } else if (b.type === 'code') {
       const lang = (b.lang || '').trim();
       parts.push('```' + lang + '\n' + (b.code || '') + '\n```');
@@ -1677,11 +1785,39 @@ function veBlocksToMarkdown(blocks) {
       if (lines.length) {
         parts.push(lines.map((l, idx) => b.ordered ? `${idx + 1}. ${l}` : `- ${l}`).join('\n'));
       }
+    } else if (b.type === 'checklist') {
+      const items = (b.items || []).filter(it => (it.text || '').trim());
+      if (items.length) {
+        parts.push(items.map(it => `- [${it.done ? 'x' : ' '}] ${it.text.trim()}`).join('\n'));
+      }
+    } else if (b.type === 'media') {
+      const u = (b.url || '').trim();
+      if (!u) continue;
+      if (b.kind === 'audio') {
+        parts.push(`<audio controls src="${u}" style="width:100%"></audio>`);
+      } else if (b.kind === 'iframe') {
+        parts.push(`<iframe src="${u}" title="${(b.title || '嵌入媒体').replace(/"/g, '&quot;')}" style="width:100%;aspect-ratio:16/9;border:none;border-radius:12px" allowfullscreen loading="lazy"></iframe>`);
+      } else {
+        parts.push(`<video controls src="${u}" style="width:100%;border-radius:12px"></video>`);
+      }
+    } else if (b.type === 'math') {
+      const c = (b.code || '').trim();
+      if (c) parts.push(`$$\n${c}\n$$`);
+    } else if (b.type === 'html') {
+      const c = (b.code || '').trim();
+      if (c) parts.push(c);
     } else if (b.type === 'divider') {
       parts.push('---');
     }
   }
   return parts.join('\n\n');
+}
+
+function veSplitTableRow(line) {
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|')) s = s.slice(0, -1);
+  return s.split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|'));
 }
 
 function veParseMarkdown(md) {
@@ -1719,6 +1855,55 @@ function veParseMarkdown(md) {
       out.push({ type: 'code', lang, code: codeLines.join('\n') });
       continue;
     }
+    // Block Math $$ ... $$
+    if (trimmed === '$$') {
+      flushPara();
+      const mLines = [];
+      i++;
+      while (i < lines.length && lines[i].trim() !== '$$') {
+        mLines.push(lines[i]);
+        i++;
+      }
+      if (i < lines.length) i++;
+      out.push({ type: 'math', code: mLines.join('\n') });
+      continue;
+    }
+    // <details> collapsible block
+    if (/^<details[\s>]/i.test(trimmed)) {
+      flushPara();
+      const dLines = [];
+      while (i < lines.length) {
+        dLines.push(lines[i]);
+        if (/<\/details>/i.test(lines[i])) { i++; break; }
+        i++;
+      }
+      const rawD = dLines.join('\n');
+      const sm = /<summary>([\s\S]*?)<\/summary>/i.exec(rawD);
+      const bodyD = rawD.replace(/^<details[^>]*>/i, '').replace(/<\/details>\s*$/i, '').replace(/<summary>[\s\S]*?<\/summary>/i, '').trim();
+      out.push({ type: 'details', summary: sm ? sm[1].trim() : '展开详情', text: bodyD });
+      continue;
+    }
+    // Media tags <video> / <audio> / <iframe>
+    const mediaM = /^<(video|audio|iframe)\b[^>]*\bsrc="([^"]+)"[^>]*>[\s\S]*<\/\1>$/i.exec(trimmed);
+    if (mediaM) {
+      flushPara();
+      const tm = /\btitle="([^"]*)"/i.exec(trimmed);
+      out.push({ type: 'media', kind: mediaM[1].toLowerCase(), url: mediaM[2], title: tm ? tm[1] : '' });
+      continue;
+    }
+    // GFM Table
+    if (trimmed.includes('|') && i + 1 < lines.length && /^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/.test(lines[i + 1].trim())) {
+      flushPara();
+      const headers = veSplitTableRow(lines[i]);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && lines[i].trim().includes('|') && lines[i].trim()) {
+        rows.push(veSplitTableRow(lines[i]));
+        i++;
+      }
+      out.push({ type: 'table', headers, rows: rows.length ? rows : [headers.map(() => '')] });
+      continue;
+    }
     // Divider
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
       flushPara();
@@ -1730,7 +1915,7 @@ function veParseMarkdown(md) {
     const hm = /^(#{1,6})\s+(.+)$/.exec(trimmed);
     if (hm) {
       flushPara();
-      out.push({ type: 'heading', level: Math.min(3, hm[1].length), text: hm[2].trim() });
+      out.push({ type: 'heading', level: Math.min(4, hm[1].length), text: hm[2].trim() });
       i++;
       continue;
     }
@@ -1754,15 +1939,41 @@ function veParseMarkdown(md) {
       i++;
       continue;
     }
-    // Blockquote
+    // GFM Callout or Blockquote
     if (/^>\s?/.test(trimmed)) {
       flushPara();
-      const qLines = [];
-      while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
-        qLines.push(lines[i].trim().replace(/^>\s?/, ''));
+      const firstBody = trimmed.replace(/^>\s?/, '');
+      const alertM = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/i.exec(firstBody.trim());
+      if (alertM) {
+        const kind = alertM[1].toUpperCase();
+        const cLines = [];
+        i++;
+        while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
+          cLines.push(lines[i].trim().replace(/^>\s?/, ''));
+          i++;
+        }
+        out.push({ type: 'callout', kind, text: cLines.join('\n') });
+      } else {
+        const qLines = [];
+        while (i < lines.length && /^>\s?/.test(lines[i].trim())) {
+          qLines.push(lines[i].trim().replace(/^>\s?/, ''));
+          i++;
+        }
+        out.push({ type: 'quote', text: qLines.join('\n') });
+      }
+      continue;
+    }
+    // Task Checklist
+    if (/^[-*+]\s+\[([ xX])\]\s+/.test(trimmed)) {
+      flushPara();
+      const items = [];
+      while (i < lines.length) {
+        const cm = /^[-*+]\s+\[([ xX])\]\s+(.*)$/.exec(lines[i].trim());
+        if (!cm) break;
+        items.push({ done: cm[1].toLowerCase() === 'x', text: cm[2] });
         i++;
       }
-      out.push({ type: 'quote', text: qLines.join('\n') });
+      out.push({ type: 'checklist', items });
       continue;
     }
     // List (unordered or ordered)
@@ -1888,7 +2099,7 @@ function veRender() {
       row.className = 've-row';
       const sel = document.createElement('select');
       sel.style.width = '78px';
-      [1, 2, 3].forEach(lv => {
+      [1, 2, 3, 4].forEach(lv => {
         const opt = document.createElement('option');
         opt.value = lv; opt.textContent = 'H' + lv;
         if (Number(b.level) === lv) opt.selected = true;
@@ -1904,10 +2115,163 @@ function veRender() {
       body.appendChild(row);
     } else if (b.type === 'paragraph' || b.type === 'quote') {
       const ta = document.createElement('textarea');
-      ta.style.minHeight = b.type === 'quote' ? '64px' : '84px';
-      ta.placeholder = b.type === 'quote' ? '输入引用内容…' : '输入正文段落（支持行内 Markdown 如 **加粗**、`代码`）…';
+      ta.style.minHeight = b.type === 'quote' ? '64px' : '86px';
+      ta.placeholder = b.type === 'quote' ? '输入引用内容…' : '输入正文段落…（可选中文字点击上方按钮一键加粗/斜体/插链接）';
       ta.value = b.text || '';
       ta.oninput = () => { b.text = ta.value; veFlushToMarkdown(); };
+      if (b.type === 'paragraph') {
+        const fmtBar = document.createElement('div');
+        fmtBar.className = 've-inline-bar';
+        const wrapSel = (pre, post, fallback) => {
+          const s = ta.selectionStart ?? ta.value.length;
+          const e = ta.selectionEnd ?? ta.value.length;
+          const chosen = ta.value.slice(s, e) || fallback;
+          ta.value = ta.value.slice(0, s) + pre + chosen + post + ta.value.slice(e);
+          b.text = ta.value;
+          veFlushToMarkdown();
+          ta.focus();
+          ta.setSelectionRange(s + pre.length, s + pre.length + chosen.length);
+        };
+        [
+          ['B 加粗', () => wrapSel('**', '**', '加粗文字')],
+          ['I 斜体', () => wrapSel('*', '*', '斜体文字')],
+          ['S 删除线', () => wrapSel('~~', '~~', '删除文字')],
+          ['</> 行内代码', () => wrapSel('`', '`', 'code')],
+          ['插链接', () => {
+            const url = prompt('输入链接 URL（https://...）:', 'https://');
+            if (url) wrapSel('[', `](${url})`, '链接文字');
+          }]
+        ].forEach(([label, fn]) => {
+          const fb = document.createElement('button');
+          fb.type = 'button'; fb.className = 've-fmt-btn'; fb.textContent = label;
+          fb.onclick = fn;
+          fmtBar.appendChild(fb);
+        });
+        body.appendChild(fmtBar);
+      }
+      body.appendChild(ta);
+    } else if (b.type === 'table') {
+      if (!Array.isArray(b.headers) || !b.headers.length) b.headers = ['列 1', '列 2'];
+      if (!Array.isArray(b.rows) || !b.rows.length) b.rows = [b.headers.map(() => '')];
+      const cols = b.headers.length;
+      const tblWrap = document.createElement('div');
+      tblWrap.className = 've-table-wrap';
+      const tbl = document.createElement('table');
+      tbl.className = 've-table';
+      const thead = document.createElement('thead');
+      const htr = document.createElement('tr');
+      b.headers.forEach((h, ci) => {
+        const th = document.createElement('th');
+        const inp = document.createElement('input');
+        inp.value = h || ''; inp.placeholder = `表头 ${ci + 1}`;
+        inp.oninput = () => { b.headers[ci] = inp.value; veFlushToMarkdown(); };
+        th.appendChild(inp); htr.appendChild(th);
+      });
+      thead.appendChild(htr);
+      const tbody = document.createElement('tbody');
+      b.rows.forEach((row, ri) => {
+        while (row.length < cols) row.push('');
+        const tr = document.createElement('tr');
+        for (let ci = 0; ci < cols; ci++) {
+          const td = document.createElement('td');
+          const inp = document.createElement('input');
+          inp.value = row[ci] || ''; inp.placeholder = '内容…';
+          inp.oninput = () => { b.rows[ri][ci] = inp.value; veFlushToMarkdown(); };
+          td.appendChild(inp); tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      });
+      tbl.append(thead, tbody);
+      tblWrap.appendChild(tbl);
+      const ctrl = document.createElement('div');
+      ctrl.className = 've-inline-bar';
+      [
+        ['+ 加行', () => { b.rows.push(Array(b.headers.length).fill('')); veFlushToMarkdown(); veRender(); }],
+        ['- 删末行', () => { if (b.rows.length > 1) { b.rows.pop(); veFlushToMarkdown(); veRender(); } }],
+        ['+ 加列', () => { b.headers.push(`列 ${b.headers.length + 1}`); b.rows.forEach(r => r.push('')); veFlushToMarkdown(); veRender(); }],
+        ['- 删末列', () => { if (b.headers.length > 1) { b.headers.pop(); b.rows.forEach(r => r.pop()); veFlushToMarkdown(); veRender(); } }]
+      ].forEach(([label, fn]) => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 've-fmt-btn'; btn.textContent = label;
+        btn.onclick = fn; ctrl.appendChild(btn);
+      });
+      body.append(tblWrap, ctrl);
+    } else if (b.type === 'checklist') {
+      if (!Array.isArray(b.items) || !b.items.length) b.items = [{ done: false, text: '' }];
+      b.items.forEach((it, ii) => {
+        const row = document.createElement('div');
+        row.className = 've-check-row';
+        const ck = document.createElement('input');
+        ck.type = 'checkbox'; ck.checked = !!it.done;
+        ck.onchange = () => { it.done = ck.checked; veFlushToMarkdown(); };
+        const inp = document.createElement('input');
+        inp.value = it.text || ''; inp.placeholder = '输入待办事项…'; inp.style.flex = '1';
+        inp.oninput = () => { it.text = inp.value; veFlushToMarkdown(); };
+        const rm = document.createElement('button');
+        rm.type = 'button'; rm.className = 've-act-btn del'; rm.textContent = '×';
+        rm.onclick = () => { b.items.splice(ii, 1); if (!b.items.length) b.items.push({ done: false, text: '' }); veFlushToMarkdown(); veRender(); };
+        row.append(ck, inp, rm);
+        body.appendChild(row);
+      });
+      const addIt = document.createElement('button');
+      addIt.type = 'button'; addIt.className = 've-fmt-btn'; addIt.textContent = '+ 添加待办项';
+      addIt.onclick = () => { b.items.push({ done: false, text: '' }); veFlushToMarkdown(); veRender(); };
+      body.appendChild(addIt);
+    } else if (b.type === 'callout') {
+      const r1 = document.createElement('div');
+      r1.className = 've-row';
+      const sel = document.createElement('select');
+      sel.style.width = '140px';
+      [['NOTE', '提示 (NOTE)'], ['TIP', '技巧 (TIP)'], ['IMPORTANT', '重要 (IMPORTANT)'], ['WARNING', '警告 (WARNING)'], ['CAUTION', '注意 (CAUTION)']].forEach(([v, l]) => {
+        const o = document.createElement('option'); o.value = v; o.textContent = l;
+        if ((b.kind || 'NOTE').toUpperCase() === v) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = () => { b.kind = sel.value; veFlushToMarkdown(); };
+      r1.appendChild(sel);
+      const ta = document.createElement('textarea');
+      ta.style.minHeight = '64px'; ta.placeholder = '输入提示框正文…';
+      ta.value = b.text || '';
+      ta.oninput = () => { b.text = ta.value; veFlushToMarkdown(); };
+      body.append(r1, ta);
+    } else if (b.type === 'details') {
+      const sumInp = document.createElement('input');
+      sumInp.placeholder = '折叠面板标题（点击展开的摘要文字）';
+      sumInp.value = b.summary || '';
+      sumInp.style.marginBottom = '6px';
+      sumInp.oninput = () => { b.summary = sumInp.value; veFlushToMarkdown(); };
+      const ta = document.createElement('textarea');
+      ta.style.minHeight = '72px'; ta.placeholder = '展开后显示的详细内容（支持 Markdown）…';
+      ta.value = b.text || '';
+      ta.oninput = () => { b.text = ta.value; veFlushToMarkdown(); };
+      body.append(sumInp, ta);
+    } else if (b.type === 'media') {
+      const r1 = document.createElement('div');
+      r1.className = 've-row';
+      const sel = document.createElement('select');
+      sel.style.width = '126px';
+      [['video', '视频 (video)'], ['audio', '音频 (audio)'], ['iframe', '嵌入 (iframe)']].forEach(([v, l]) => {
+        const o = document.createElement('option'); o.value = v; o.textContent = l;
+        if ((b.kind || 'video') === v) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.onchange = () => { b.kind = sel.value; veFlushToMarkdown(); };
+      const urlInp = document.createElement('input');
+      urlInp.placeholder = '媒体地址 (/assets/demo.mp4 或 嵌入播放器 URL)';
+      urlInp.value = b.url || ''; urlInp.style.flex = '1';
+      urlInp.oninput = () => { b.url = urlInp.value; veFlushToMarkdown(); };
+      const pickBtn = document.createElement('button');
+      pickBtn.type = 'button'; pickBtn.className = 'btn blue';
+      pickBtn.style.cssText = 'flex-shrink:0;padding:0 10px'; pickBtn.textContent = '素材库';
+      pickBtn.onclick = () => openCoverPicker((url) => { b.url = url; veFlushToMarkdown(); veRender(); }, false);
+      r1.append(sel, urlInp, pickBtn);
+      body.appendChild(r1);
+    } else if (b.type === 'math' || b.type === 'html') {
+      const ta = document.createElement('textarea');
+      ta.style.cssText = 'min-height:84px;font-family:var(--mono);font-size:.78rem';
+      ta.placeholder = b.type === 'math' ? '输入 LaTeX 公式（如 E = mc^2）…' : '输入自定义 HTML 片段…';
+      ta.value = b.code || '';
+      ta.oninput = () => { b.code = ta.value; veFlushToMarkdown(); };
       body.appendChild(ta);
     } else if (b.type === 'image') {
       const r1 = document.createElement('div');
