@@ -1999,6 +1999,117 @@
             renderPlayerWidget();
         }
 
+        // ══════════ GitHub 贡献热力图（带缓存 + 博客发文兜底） ══════════
+        function initGithubHeatmap() {
+            const card = document.getElementById('cnfte-gh-heatmap');
+            if (!card || card.dataset.bound) return;
+            card.dataset.bound = '1';
+            const grid = document.getElementById('gh-heatmap-grid');
+            const totalEl = document.getElementById('gh-heatmap-total');
+            const titleEl = document.getElementById('gh-heatmap-title');
+            const sourceEl = document.getElementById('gh-heatmap-source');
+            if (!grid) return;
+
+            const user = (card.dataset.ghUser || '').trim();
+
+            function renderCells(days, totalCount, isFallback) {
+                if (!grid.isConnected) return;
+                const frag = document.createDocumentFragment();
+                for (let i = 0; i < days.length; i++) {
+                    const d = days[i];
+                    const cell = document.createElement('span');
+                    cell.className = 'hm-cell';
+                    cell.dataset.level = String(d.level || 0);
+                    cell.title = `${d.date} · ${d.count} ${isFallback ? '篇文章' : '次贡献'}`;
+                    frag.appendChild(cell);
+                }
+                grid.innerHTML = '';
+                grid.appendChild(frag);
+                if (totalEl) {
+                    totalEl.textContent = isFallback
+                        ? `近一年 ${totalCount} 篇更新`
+                        : `${totalCount.toLocaleString()} 次贡献 · 近一年`;
+                }
+                if (isFallback) {
+                    if (titleEl) titleEl.textContent = '博客更新热力图';
+                    if (sourceEl) sourceEl.textContent = '已自动切换为本站文章发布活跃度';
+                } else {
+                    if (sourceEl) sourceEl.textContent = '数据同步自 GitHub Contributions';
+                }
+                // 自动滚到最新一列（最右侧）
+                if (grid.parentElement) {
+                    grid.parentElement.scrollLeft = grid.parentElement.scrollWidth;
+                }
+            }
+
+            function buildLocalFallback() {
+                const counts = Object.create(null);
+                document.querySelectorAll('.post-card[data-date]').forEach(el => {
+                    const raw = (el.dataset.date || '').trim();
+                    const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(raw);
+                    if (!m) return;
+                    const key = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+                    counts[key] = (counts[key] || 0) + 1;
+                });
+                const today = new Date();
+                const days = [];
+                let total = 0;
+                for (let offset = 363; offset >= 0; offset--) {
+                    const dt = new Date(today);
+                    dt.setDate(today.getDate() - offset);
+                    const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+                    const c = counts[key] || 0;
+                    total += c;
+                    const level = c === 0 ? 0 : c === 1 ? 2 : c === 2 ? 3 : 4;
+                    days.push({ date: key, count: c, level });
+                }
+                return { days, total };
+            }
+
+            if (!user) {
+                const fb = buildLocalFallback();
+                renderCells(fb.days, fb.total, true);
+                return;
+            }
+
+            window.__cnfteGhContribCache = window.__cnfteGhContribCache || {};
+            if (window.__cnfteGhContribCache[user]) {
+                const cached = window.__cnfteGhContribCache[user];
+                renderCells(cached.days, cached.total, cached.isFallback);
+                return;
+            }
+
+            // 先画骨架占位（避免加载期间高度跳变）
+            const placeholder = document.createDocumentFragment();
+            for (let i = 0; i < 364; i++) {
+                const cell = document.createElement('span');
+                cell.className = 'hm-cell';
+                cell.dataset.level = '0';
+                placeholder.appendChild(cell);
+            }
+            grid.innerHTML = '';
+            grid.appendChild(placeholder);
+
+            fetch(`https://github-contributions-api.jogruber.de/v4/${encodeURIComponent(user)}?y=last`, {
+                signal: AbortSignal.timeout ? AbortSignal.timeout(6000) : undefined
+            })
+                .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+                .then(data => {
+                    const list = Array.isArray(data.contributions) ? data.contributions.slice(-364) : [];
+                    if (!list.length) throw new Error('empty');
+                    const total = (data.total && typeof data.total.lastYear === 'number')
+                        ? data.total.lastYear
+                        : list.reduce((s, d) => s + (d.count || 0), 0);
+                    window.__cnfteGhContribCache[user] = { days: list, total, isFallback: false };
+                    renderCells(list, total, false);
+                })
+                .catch(() => {
+                    const fb = buildLocalFallback();
+                    window.__cnfteGhContribCache[user] = { days: fb.days, total: fb.total, isFallback: true };
+                    renderCells(fb.days, fb.total, true);
+                });
+        }
+
         // ── 首次初始化（每个功能独立 try/catch，避免其中一个异常导致后面的
         //    全部不执行——例如某些环境下 canvas/IntersectionObserver 不可用）──
         function safeRun(fn) {
@@ -2021,7 +2132,7 @@
         safeRun(registerAudioAccelSW);
         safeRun(bindMusicPlayer);
         safeRun(bindScrollReveal);
-        cnfteIdle(() => { safeRun(initParticles); safeRun(initHeroTyping); }, { timeout: 800 });
+        cnfteIdle(() => { safeRun(initGithubHeatmap); safeRun(initParticles); safeRun(initHeroTyping); }, { timeout: 800 });
 
         // ── SPA 换页后重新应用（不需要改动原有 navigate()/reinitPage()）──
         // 观察者始终保持连接（不再因为 hero 打字机而 disconnect）：回调里先过滤掉
@@ -2033,13 +2144,11 @@
         // 侧边栏/播放器再也不会被重新揭示 / 重新绑定」的问题。
         let debounceTimer;
         cnfteObserver = new MutationObserver((mutations) => {
-            // 过滤掉只发生在 .hero-bio 内部的 mutation（打字机动画产生的文本节点变化）
-            // 以及只发生在 #cnfte-player-widget 内部的 mutation（renderPlayerWidget
-            // 自己用 innerHTML 更新按钮图标触发的），避免两种情况造成无限重绑定循环。
+            // 过滤掉只发生在 .hero-bio / #cnfte-player-widget / #cnfte-gh-heatmap 内部的 mutation
             const onlyInternal = mutations.length > 0 && mutations.every(m => {
                 const t = m.target;
                 if (!t || t.nodeType !== 1 || !t.closest) return false;
-                return t.closest('.hero-bio') || t.closest('#cnfte-player-widget');
+                return t.closest('.hero-bio') || t.closest('#cnfte-player-widget') || t.closest('#cnfte-gh-heatmap');
             });
             if (onlyInternal) return;
 
@@ -2054,7 +2163,7 @@
                 safeRun(initArchiveFilters);
                 safeRun(bindMusicPlayer);
                 safeRun(bindScrollReveal);
-                cnfteIdle(() => safeRun(initHeroTyping), { timeout: 500 });
+                cnfteIdle(() => { safeRun(initGithubHeatmap); safeRun(initHeroTyping); }, { timeout: 500 });
             }, 40);
         });
         cnfteObserver.observe(document.body, { childList: true, subtree: true });

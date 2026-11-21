@@ -227,16 +227,82 @@
     </div>
 
 
+    {% set gh_raw = config.github_url | default(config.social_github | default('')) | string | trim %}
+    {% set gh_user = gh_raw.rstrip('/').split('/')[-1] if 'github.com/' in gh_raw else (config.username | default('')) %}
+
     <div id="main-grid" class="layout-wrapper">
 
+        {# ── Zone 1: 概览区（GitHub 贡献热力图 + 站点核心指标，与下方双栏精确对齐） ── #}
+        <section class="overview-bento" aria-label="站点概览与活跃度">
+            <div class="bento-card heatmap-card" id="cnfte-gh-heatmap" data-gh-user="{{ gh_user }}" data-cnfte-reveal="up">
+                <div class="heatmap-head">
+                    <div class="heatmap-title-wrap">
+                        <svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                        <h2 class="bento-title" id="gh-heatmap-title">GitHub 贡献热力图</h2>
+                        {% if gh_user %}
+                        <a class="heatmap-user" href="https://github.com/{{ gh_user }}" target="_blank" rel="noopener">@{{ gh_user }}</a>
+                        {% endif %}
+                    </div>
+                    <span class="heatmap-total" id="gh-heatmap-total">加载中…</span>
+                </div>
+                <div class="heatmap-scroll">
+                    <div class="heatmap-grid" id="gh-heatmap-grid" role="img" aria-label="GitHub 近一年贡献热力图"></div>
+                </div>
+                <div class="heatmap-foot">
+                    <span class="heatmap-source" id="gh-heatmap-source">近一年活跃记录</span>
+                    <div class="heatmap-legend" aria-hidden="true">
+                        <span>少</span>
+                        <i class="hm-cell" data-level="0"></i>
+                        <i class="hm-cell" data-level="1"></i>
+                        <i class="hm-cell" data-level="2"></i>
+                        <i class="hm-cell" data-level="3"></i>
+                        <i class="hm-cell" data-level="4"></i>
+                        <span>多</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bento-card stats-bento-card" data-cnfte-reveal="up" style="transition-delay:0.06s">
+                <div class="stats-grid-2x2">
+                    <div class="stat-tile">
+                        <span class="stat-val">{{ posts|length }}</span>
+                        <span class="stat-label">文章总数</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-val">{{ categories_list|length if categories_list else 0 }}</span>
+                        <span class="stat-label">专栏分类</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-val" id="sidebar-days">—</span>
+                        <span class="stat-label">运行天数</span>
+                    </div>
+                    <div class="stat-tile">
+                        <span class="stat-val" id="clock">—</span>
+                        <span class="stat-label">当前时间</span>
+                    </div>
+                </div>
+                <div class="stats-quote">
+                    <span id="hitokoto">正在同步一言…</span>
+                </div>
+            </div>
+        </section>
+
+        {# ── Zone 2: 主阅读区（清晰标题栏 + 规整双列文章网格） ── #}
         <main id="main-content" class="post-list" data-per-page="{{ posts_per_page | default(9) }}">
-            <div id="cnfte-filter-bar">
-                <span id="cnfte-clear-filter" class="cnfte-chip" style="border-color:var(--border-accent)">
-                    <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> 清除筛选
-                </span>
+            <div class="posts-section-head">
+                <div class="posts-section-title">
+                    <h2>最新文章</h2>
+                    <span class="posts-count-pill">{{ posts|length }} 篇</span>
+                </div>
+                <div id="cnfte-filter-bar">
+                    <span id="cnfte-clear-filter" class="cnfte-chip" style="border-color:var(--border-accent)">
+                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> 清除筛选
+                    </span>
+                </div>
             </div>
             {% for p in posts %}
-            <article class="post-card" data-cnfte-reveal="left" style="transition-delay:{{ (loop.index0 % 6) * 0.06 }}s"
+            <article class="post-card" data-cnfte-reveal="up" style="transition-delay:{{ (loop.index0 % 6) * 0.05 }}s"
+                data-date="{{ p.date }}"
                 data-category="{{ p.category | default('') }}"
                 data-tags="{{ (p.tags | join('|')) if p.tags else '' }}"
                 data-year="{{ p.date | string | truncate(4, True, '') }}"
@@ -418,25 +484,11 @@
 
             {% if config.site_notice and config.show_notice_widget %}
             <section data-cnfte-reveal="right" class="widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> NOTICE</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> 站点公告</h2>
                 {# FIX: crawlable-anchors — notice widget 内链接确保用 href 属性 #}
                 <div class="notice-widget-content">{{ config.site_notice | safe }}</div>
             </section>
             {% endif %}
-
-
-            <section data-cnfte-reveal="right" class="terminal-widget" aria-label="站点信息终端">
-                <div class="t-line">&gt; <span class="t-accent">NODE</span>: <span class="t-val">ACTIVE</span></div>
-                <div class="t-line">&gt; <span class="t-accent">UPTIME</span>: <span id="sidebar-days"
-                        class="t-val">—</span> DAYS</div>
-                <div class="t-line">&gt; <span class="t-accent">POSTS</span>: <span class="t-val">{{ posts|length
-                        }}</span></div>
-                <div class="t-line">&gt; <span class="t-accent">TIME</span>: <span id="clock" class="t-val">—</span>
-                </div>
-                <div class="t-line">&gt; <span class="t-accent">HITOKOTO</span>: <span id="hitokoto"
-                        class="t-val" style="font-weight:400">正在同步次元语录…</span></div>
-                <div class="t-dim">&gt; TERMINAL_READY // EOF</div>
-            </section>
         </aside>
     </div>
 
