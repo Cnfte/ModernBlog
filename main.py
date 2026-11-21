@@ -3557,7 +3557,10 @@ def api_files():
             except Exception:
                 result.append({'name': fn, 'title': fn.replace('.md', ''), 'date': '', 'uid': ''})
     if result:
-        result.sort(key=lambda x: (str(x.get('date', '')), str(x.get('name', ''))), reverse=True)
+        def _date_key(val):
+            m = re.match(r'^\s*(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})', str(val or ''))
+            return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else (0, 0, 0)
+        result.sort(key=lambda x: (_date_key(x.get('date')), str(x.get('uid', '')), str(x.get('name', ''))), reverse=True)
     return jsonify(result)
 
 

@@ -506,7 +506,11 @@ def build():
                     except Exception as e:
                         print(f"[WARN] 文章渲染错误: {e}")
 
-        posts_data.sort(key=lambda x: str(x.get('date', '0000-00-00')), reverse=True)
+        def _date_key(val):
+            m = re.match(r'^\s*(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})', str(val or ''))
+            return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else (0, 0, 0)
+
+        posts_data.sort(key=lambda x: (_date_key(x.get('date')), str(x.get('uid', ''))), reverse=True)
 
         # ── 分类 / 标签 / 年月归档 统计（供首页侧栏渲染 + 前端筛选使用） ──
         categories_count = {}
