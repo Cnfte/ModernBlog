@@ -1421,7 +1421,7 @@
     .post-body .callout-warning { --callout-c: #fbbf24; }
     .post-body .callout-caution { --callout-c: #fb7185; }
 
-    /* 折叠面板（Apple HIG Grouped Disclosure Card） */
+    /* 折叠面板（Apple HIG Grouped Disclosure Card，内部自动包裹 .details-body） */
     .post-body details {
         margin: 1.4em 0;
         border-radius: 16px;
@@ -1470,15 +1470,290 @@
         transform: rotate(45deg);
         border-color: var(--accent);
     }
-    .post-body details > :not(summary) {
-        padding-inline: 18px;
+    .post-body details > .details-body {
+        padding: 14px 18px 16px;
+        color: var(--label-secondary);
+        line-height: 1.75;
     }
-    .post-body details > :nth-child(2) {
-        padding-top: 14px;
+    .post-body details > .details-body > :first-child { margin-top: 0; }
+    .post-body details > .details-body > :last-child { margin-bottom: 0; }
+
+    /* 自定义 Apple HIG 正文音频卡片（替代丑陋原生 audio 条） */
+    .post-audio-card {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 1.4em 0;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.055);
+        border: 1px solid var(--separator);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
-    .post-body details > :last-child:not(summary) {
-        padding-bottom: 14px;
-        margin-bottom: 0;
+    .post-audio-card .pac-play {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: var(--accent);
+        color: #0b0b0e;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        cursor: pointer;
+        transition: transform .25s var(--ease-spring), filter .2s;
+    }
+    .post-audio-card .pac-play:hover { filter: brightness(1.08); transform: scale(1.05); }
+    .post-audio-card .pac-play:active { transform: scale(0.92); }
+    .post-audio-card .pac-play svg { width: 18px; height: 18px; pointer-events: none; }
+    .post-audio-card .pac-main { flex: 1; min-width: 0; }
+    .post-audio-card .pac-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+    .post-audio-card .pac-name {
+        font-size: 0.88rem;
+        font-weight: 600;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .post-audio-card .pac-time {
+        font-size: 0.74rem;
+        font-family: var(--mono);
+        font-variant-numeric: tabular-nums;
+        color: var(--label-tertiary);
+        flex-shrink: 0;
+    }
+    .post-audio-card .pac-bar {
+        position: relative;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.14);
+        cursor: pointer;
+        overflow: hidden;
+    }
+    .post-audio-card .pac-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0%;
+        background: var(--accent);
+        border-radius: 999px;
+        pointer-events: none;
+    }
+    .post-audio-card .pac-dl {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--fill-tertiary);
+        color: var(--label-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        border: none;
+        padding: 0;
+        margin: 0;
+        transition: background .2s, color .2s;
+    }
+    .post-audio-card .pac-dl:hover {
+        background: var(--fill-primary);
+        color: #fff;
+        border: none;
+    }
+
+    /* macOS 风格美化代码块容器（语言徽章 + 一键复制 + 换行切换） */
+    .post-code-wrap {
+        margin: 1.5em 0;
+        border-radius: 16px;
+        background: #101014;
+        border: 1px solid var(--separator);
+        overflow: hidden;
+        box-shadow: 0 10px 28px rgba(0, 0, 0, 0.30);
+    }
+    .post-code-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 9px 14px;
+        background: rgba(255, 255, 255, 0.045);
+        border-bottom: 1px solid var(--separator-subtle);
+        user-select: none;
+    }
+    .post-code-left {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .post-code-dots {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #ff5f57;
+        box-shadow: 15px 0 0 #febc2e, 30px 0 0 #28c840;
+        margin-right: 30px;
+        opacity: 0.85;
+    }
+    .post-code-lang {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--label-secondary);
+    }
+    .post-code-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .post-code-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 7px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--separator-subtle);
+        color: var(--label-secondary);
+        font-size: 0.72rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background .18s, color .18s, border-color .18s;
+    }
+    .post-code-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        border-color: rgba(255, 255, 255, 0.22);
+    }
+    .post-code-btn.copied {
+        color: #34d399;
+        border-color: rgba(52, 211, 153, 0.45);
+        background: rgba(52, 211, 153, 0.12);
+    }
+    .post-code-wrap pre {
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        background: transparent !important;
+        padding: 16px 18px !important;
+    }
+    .post-code-wrap.is-wrapped pre,
+    .post-code-wrap.is-wrapped pre code {
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    /* 响应式表格容器 */
+    .post-table-wrap {
+        margin: 1.5em 0;
+        overflow-x: auto;
+        border-radius: 14px;
+        border: 1px solid var(--separator);
+        background: rgba(255, 255, 255, 0.025);
+        overscroll-behavior-x: contain;
+    }
+    .post-table-wrap table {
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+    }
+    .post-table-wrap tbody tr:hover td {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    /* 标题锚点复制按钮 */
+    .post-body h2, .post-body h3, .post-body h4 {
+        position: relative;
+    }
+    .post-heading-anchor {
+        margin-left: 8px;
+        font-size: 0.8em;
+        color: var(--label-tertiary);
+        opacity: 0;
+        cursor: pointer;
+        border: none !important;
+        padding: 0 4px !important;
+        background: transparent !important;
+        transition: opacity .18s, color .18s;
+    }
+    .post-body h2:hover .post-heading-anchor,
+    .post-body h3:hover .post-heading-anchor,
+    .post-body h4:hover .post-heading-anchor,
+    .post-heading-anchor:focus-visible {
+        opacity: 1;
+        color: var(--accent);
+    }
+
+    /* 全屏图片灯箱 & Toast 轻提示 */
+    #cnfte-lightbox {
+        position: fixed;
+        inset: 0;
+        z-index: 9500;
+        background: rgba(8, 8, 12, 0.86);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 24px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        cursor: zoom-out;
+        transition: opacity .24s var(--ease-out), visibility .24s;
+    }
+    #cnfte-lightbox.open {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+    #cnfte-lightbox img {
+        max-width: min(92dvw, 1200px);
+        max-height: 82dvh;
+        object-fit: contain;
+        border-radius: 16px;
+        box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+        transform: scale(0.95);
+        transition: transform .3s var(--ease-spring);
+    }
+    #cnfte-lightbox.open img { transform: scale(1); }
+    #cnfte-lightbox .lb-cap {
+        font-size: 0.86rem;
+        color: var(--label-secondary);
+        text-align: center;
+        max-width: 640px;
+    }
+
+    #cnfte-toast {
+        position: fixed;
+        left: 50%;
+        bottom: 28px;
+        z-index: 9600;
+        padding: 9px 18px;
+        border-radius: 999px;
+        background: rgba(28, 28, 34, 0.92);
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--glass-rim), 0 12px 32px rgba(0, 0, 0, 0.45);
+        color: #fff;
+        font-size: 0.82rem;
+        font-weight: 600;
+        pointer-events: none;
+        opacity: 0;
+        transform: translate(-50%, 14px);
+        transition: opacity .22s var(--ease-out), transform .28s var(--ease-spring);
+    }
+    #cnfte-toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
     }
 
     /* 媒体播放器（video / audio / iframe 统一圆角暗色封装） */
@@ -1561,7 +1836,7 @@
         color: #e5e5ea;
     }
 
-    /* 图片自适应容器并限制最大舒适观感高度（宽图铺满、竖图不撑爆屏幕） */
+    /* 图片自适应容器并限制最大舒适观感高度（宽图铺满、竖图不撑爆屏幕，点击可灯箱放大） */
     .post-body img {
         display: block;
         max-width: 100%;
@@ -1573,6 +1848,11 @@
         border-radius: 16px;
         border: 1px solid var(--separator);
         box-shadow: 0 12px 32px rgba(0, 0, 0, 0.32);
+        cursor: zoom-in;
+        transition: transform .28s var(--ease-spring), box-shadow .25s;
+    }
+    .post-body img:hover {
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.44);
     }
 
     .post-body hr {

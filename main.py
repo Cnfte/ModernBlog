@@ -1922,7 +1922,7 @@ async function openCoverPicker(onSelect = null, imagesOnly = true) {
         <div class="ai-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div>
         <div class="ai-size">${escapeHtml(f.size)}</div>`;
       item.onclick = () => {
-        const url = `/assets/${f.name}`;
+        const url = `/assets/${encodeURIComponent(f.name)}`;
         closeModal('cover-modal');
         if (typeof onSelect === 'function') {
           onSelect(url, f.name);
@@ -2526,7 +2526,13 @@ function veRender() {
       const pickBtn = document.createElement('button');
       pickBtn.type = 'button'; pickBtn.className = 'btn blue';
       pickBtn.style.cssText = 'flex-shrink:0;padding:0 10px'; pickBtn.textContent = '素材库';
-      pickBtn.onclick = () => openCoverPicker((url) => { b.url = url; veFlushToMarkdown(); veRender(); }, false);
+      pickBtn.onclick = () => openCoverPicker((url, fname) => {
+        b.url = url;
+        if (/\.(mp3|wav|flac|ogg|m4a|aac|opus)$/i.test(fname || url)) b.kind = 'audio';
+        else if (/\.(mp4|webm|mov|mkv)$/i.test(fname || url)) b.kind = 'video';
+        veFlushToMarkdown();
+        veRender();
+      }, false);
       r1.append(sel, urlInp, pickBtn);
       body.appendChild(r1);
     } else if (b.type === 'math' || b.type === 'html') {

@@ -2154,7 +2154,58 @@
                 });
         }
 
-        // ══════════ 文章正文增强（GFM 提示框 + 独立链接/附件卡片） ══════════
+        // ── 全局轻提示 Toast & 图片灯箱 Lightbox ──
+        let toastTimer = null;
+        function showToast(msg) {
+            let el = document.getElementById('cnfte-toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'cnfte-toast';
+                el.setAttribute('role', 'status');
+                el.setAttribute('aria-live', 'polite');
+                document.body.appendChild(el);
+            }
+            el.textContent = msg;
+            el.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
+        }
+
+        function openLightbox(src, alt) {
+            let lb = document.getElementById('cnfte-lightbox');
+            if (!lb) {
+                lb = document.createElement('div');
+                lb.id = 'cnfte-lightbox';
+                lb.innerHTML = '<img alt=""><div class="lb-cap"></div>';
+                lb.addEventListener('click', () => lb.classList.remove('open'));
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') lb.classList.remove('open');
+                });
+                document.body.appendChild(lb);
+            }
+            lb.querySelector('img').src = src;
+            lb.querySelector('img').alt = alt || '';
+            const cap = lb.querySelector('.lb-cap');
+            cap.textContent = alt || '';
+            cap.style.display = alt ? 'block' : 'none';
+            lb.classList.add('open');
+        }
+
+        function copyText(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                return navigator.clipboard.writeText(text);
+            }
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (_) { }
+            ta.remove();
+            return Promise.resolve();
+        }
+
+        // ══════════ 文章正文全面增强（代码块/折叠面板/音频卡/表格/提示框/链接卡/灯箱/锚点） ══════════
         function enhancePostBody() {
             const body = document.querySelector('.post-body');
             if (!body || body.dataset.enhanced) return;
@@ -2187,7 +2238,113 @@
                 bq.replaceWith(wrap);
             });
 
-            // 2. 独立行链接 / 附件下载自动升级为风格化卡片
+            // 2. 折叠面板 <details> 内容自动包裹 .details-body（修复裸文本贴边问题）
+            body.querySelectorAll('details').forEach(det => {
+                if (det.querySelector(':scope > .details-body')) return;
+                const summary = det.querySelector(':scope > summary');
+                const inner = document.createElement('div');
+                inner.className = 'details-body';
+                const nodes = Array.from(det.childNodes).filter(n => n !== summary);
+                nodes.forEach(n => {
+                    if (n.nodeType === 3 && !n.textContent.trim()) { n.remove(); return; }
+                    inner.appendChild(n);
+                });
+                if (inner.childNodes.length) det.appendChild(inner);
+            });
+
+            // 3. 代码块美化：macOS 头部栏 + 语言标识 + 一键复制 + 自动换行切换
+            body.querySelectorAll('pre').forEach(pre => {
+                if (pre.closest('.post-code-wrap')) return;
+                const codeEl = pre.querySelector('code');
+                let lang = 'CODE';
+                const cls = ((codeEl && codeEl.className) || '') + ' ' + (pre.className || '') + ' ' + (pre.parentElement?.className || '');
+                const lm = /language-([a-z0-9_+#-]+)|lang-([a-z0-9_+#-]+)/i.exec(cls);
+                if (lm) lang = (lm[1] || lm[2]).toUpperCase();
+                const wrap = document.createElement('div');
+                wrap.className = 'post-code-wrap';
+                const head = document.createElement('div');
+                head.className = 'post-code-head';
+                head.innerHTML = `<span class="post-code-left"><span class="post-code-dots" aria-hidden="true"></span><span class="post-code-lang"></span></span><span class="post-code-actions"><button type="button" class="post-code-btn pc-wrap">换行</button><button type="button" class="post-code-btn pc-copy">复制</button></span>`;
+                head.querySelector('.post-code-lang').textContent = lang;
+                const wrapBtn = head.querySelector('.pc-wrap');
+                const copyBtn = head.querySelector('.pc-copy');
+                wrapBtn.addEventListener('click', () => {
+                    const wrapped = wrap.classList.toggle('is-wrapped');
+                    wrapBtn.textContent = wrapped ? '不换行' : '换行';
+                });
+                copyBtn.addEventListener('click', () => {
+                    const txt = (codeEl || pre).textContent || '';
+                    copyText(txt).then(() => {
+                        copyBtn.textContent = '已复制';
+                        copyBtn.classList.add('copied');
+                        showToast('代码已复制到剪贴板');
+                        setTimeout(() => { copyBtn.textContent = '复制'; copyBtn.classList.remove('copied'); }, 1800);
+                    });
+                });
+                pre.parentNode.insertBefore(wrap, pre);
+                wrap.appendChild(head);
+                wrap.appendChild(pre);
+            });
+
+            // 4. 正文内嵌 <audio> 升级为 Apple HIG 自定义音频播放器卡片
+            body.querySelectorAll('audio').forEach(audio => {
+                if (audio.closest('.post-audio-card')) return;
+                const src = audio.getAttribute('src') || audio.querySelector('source')?.getAttribute('src') || '';
+                let name = '音频文件';
+                try { name = decodeURIComponent(src.split('/').pop().split('?')[0]) || name; } catch (_) { }
+                const card = document.createElement('div');
+                card.className = 'post-audio-card';
+                const playSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="7 4 19 12 7 20 7 4"/></svg>';
+                const pauseSvg = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1.5"/><rect x="14" y="4" width="4" height="16" rx="1.5"/></svg>';
+                card.innerHTML = `
+                    <button type="button" class="pac-play" aria-label="播放音频">${playSvg}</button>
+                    <div class="pac-main">
+                        <div class="pac-top"><span class="pac-name"></span><span class="pac-time">0:00 / 0:00</span></div>
+                        <div class="pac-bar"><div class="pac-fill"></div></div>
+                    </div>
+                    <a class="pac-dl" download title="下载音频" aria-label="下载音频"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></a>`;
+                card.querySelector('.pac-name').textContent = name;
+                const dl = card.querySelector('.pac-dl');
+                if (src) dl.href = src; else dl.style.display = 'none';
+                const playBtn = card.querySelector('.pac-play');
+                const timeEl = card.querySelector('.pac-time');
+                const barEl = card.querySelector('.pac-bar');
+                const fillEl = card.querySelector('.pac-fill');
+                audio.controls = false;
+                audio.style.display = 'none';
+                const sync = () => {
+                    const dur = isFinite(audio.duration) ? audio.duration : 0;
+                    const cur = audio.currentTime || 0;
+                    fillEl.style.width = dur ? ((cur / dur) * 100) + '%' : '0%';
+                    timeEl.textContent = `${fmtTime(cur)} / ${fmtTime(dur)}`;
+                };
+                playBtn.addEventListener('click', () => {
+                    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+                });
+                audio.addEventListener('play', () => { playBtn.innerHTML = pauseSvg; playBtn.setAttribute('aria-label', '暂停音频'); });
+                audio.addEventListener('pause', () => { playBtn.innerHTML = playSvg; playBtn.setAttribute('aria-label', '播放音频'); });
+                audio.addEventListener('timeupdate', sync);
+                audio.addEventListener('loadedmetadata', sync);
+                barEl.addEventListener('click', (e) => {
+                    if (!isFinite(audio.duration) || audio.duration <= 0) return;
+                    const r = barEl.getBoundingClientRect();
+                    audio.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * audio.duration;
+                    sync();
+                });
+                audio.parentNode.insertBefore(card, audio);
+                card.appendChild(audio);
+            });
+
+            // 5. 表格包裹响应式滚动容器
+            body.querySelectorAll('table').forEach(tbl => {
+                if (tbl.closest('.post-table-wrap')) return;
+                const wrap = document.createElement('div');
+                wrap.className = 'post-table-wrap';
+                tbl.parentNode.insertBefore(wrap, tbl);
+                wrap.appendChild(tbl);
+            });
+
+            // 6. 独立行链接 / 附件下载自动升级为风格化卡片
             body.querySelectorAll('p').forEach(p => {
                 if (p.children.length !== 1 || p.firstElementChild.tagName !== 'A') return;
                 if (p.textContent.trim() !== p.firstElementChild.textContent.trim()) return;
@@ -2195,12 +2352,12 @@
                 const href = a.getAttribute('href') || '';
                 if (!href || href.startsWith('#')) return;
                 const rawText = a.textContent.trim();
-                const isAttachment = /^附件[:：]/.test(rawText) || /\.(zip|rar|7z|tar|gz|pdf|apk|exe|dmg|docx?|xlsx?|pptx?)$/i.test(href);
+                const isAttachment = /^附件[:：]/.test(rawText) || /\.(zip|rar|7z|tar|gz|pdf|apk|exe|dmg|docx?|xlsx?|pptx?|mp3|flac|wav|mp4)$/i.test(href);
                 const label = rawText.replace(/^附件[:：]\s*/, '');
                 let meta = href;
                 try {
                     const u = new URL(href, location.origin);
-                    meta = u.origin === location.origin ? u.pathname : (u.hostname + (u.pathname === '/' ? '' : u.pathname));
+                    meta = u.origin === location.origin ? decodeURIComponent(u.pathname) : (u.hostname + (u.pathname === '/' ? '' : u.pathname));
                 } catch (_) { }
                 a.className = 'post-link-card';
                 if (isAttachment) a.setAttribute('download', '');
@@ -2213,6 +2370,26 @@
                 a.querySelector('.plc-title').textContent = label || href;
                 a.querySelector('.plc-meta').textContent = meta;
                 p.replaceWith(a);
+            });
+
+            // 7. 正文图片点击灯箱放大 + 标题锚点一键复制
+            body.querySelectorAll('img').forEach(img => {
+                img.addEventListener('click', () => openLightbox(img.currentSrc || img.src, img.alt));
+            });
+            body.querySelectorAll('h2[id], h3[id], h4[id]').forEach(h => {
+                if (h.querySelector('.post-heading-anchor')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'post-heading-anchor';
+                btn.textContent = '#';
+                btn.title = '复制章节链接';
+                btn.setAttribute('aria-label', '复制章节链接');
+                btn.addEventListener('click', () => {
+                    const url = location.origin + location.pathname + '#' + encodeURIComponent(h.id);
+                    history.replaceState(null, '', '#' + encodeURIComponent(h.id));
+                    copyText(url).then(() => showToast('已复制章节链接'));
+                });
+                h.appendChild(btn);
             });
         }
 
