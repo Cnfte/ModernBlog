@@ -137,8 +137,10 @@
     <div id="hero-wrap">
         <header id="site-hero" class="hero hero-intro">
             {# FIX: image-explicit-size — 为 hero-img 添加 width/height 属性防止 CLS #}
-            <img src="{{ config.bg_url | default('https://cnfte.top/attachments/bj.webp') }}" class="hero-img"
+            {% if config.bg_url %}
+            <img src="{{ config.bg_url }}" class="hero-img"
                 alt="{{ config.site_name }} 背景" width="1920" height="1080" fetchpriority="high" decoding="async">
+            {% endif %}
             <div class="hero-gradient" aria-hidden="true"></div>
             <div class="hero-intro-layout">
                 {% if config.avatar_url %}
@@ -495,7 +497,7 @@
     <footer id="site-footer" data-cnfte-reveal="pop" data-cnfte-reveal-repeat="1">
         <div class="foot-left">
             <div class="foot-text">{{ config.footer_text | default(config.footer_custom) | safe }}</div>
-            <div class="foot-copy">© {{ datetime.now().year }} {{ config.username }} // CNFTE MOE PANEL</div>
+            <div class="foot-copy">© {{ datetime.now().year }} {{ config.username | default(config.site_name) }} · Powered by ModernBlog</div>
         </div>
         <div class="foot-right">
             <div class="foot-badges">
@@ -551,7 +553,7 @@
     </footer>
 
     <script>
-        /* ─── CNFTE MOE PANEL v4.1 — Runtime ─── */
+        /* ─── ModernBlog Runtime ─── */
         'use strict';
 
         // ── 进度条 ──

@@ -3101,7 +3101,7 @@ def api_log_stream():
 if __name__ == '__main__':
     _init_env()
     print("=" * 55)
-    print("  INDEX // MOE_SYSTEM v8.0.0")
+    print("  ModernBlog Admin WebUI")
     print("  Flask WebUI Edition")
     print(f"  访问地址: http://0.0.0.0:32323")
     print(f"  本机访问: http://127.0.0.1:32323")

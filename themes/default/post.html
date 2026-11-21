@@ -358,7 +358,7 @@
     <footer id="site-footer" data-cnfte-reveal="pop" data-cnfte-reveal-repeat="1">
         <div class="foot-left">
             <div class="foot-text">{{ config.footer_text | default(config.footer_custom) | safe }}</div>
-            <div class="foot-copy">© {{ datetime.now().year }} {{ config.username }} // CNFTE MOE PANEL</div>
+            <div class="foot-copy">© {{ datetime.now().year }} {{ config.username | default(config.site_name) }} · Powered by ModernBlog</div>
         </div>
         <div class="foot-right">
             <div class="foot-badges">
