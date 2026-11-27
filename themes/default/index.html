@@ -83,7 +83,8 @@
             </div>
             {# FIX: crawlable-anchors — 公告内容中的链接必须用 href，而不是 src。
             此处用 | safe 渲染用户配置的 HTML，请在配置中确保链接写作 <a href="..."> #}
-                <div class="notice-body">{{ config.site_notice | safe }}</div>
+                <div class="notice-body" data-lang-block="zh">{{ config.site_notice | safe }}</div>
+                <div class="notice-body" data-lang-block="en" hidden>{{ (config_en.site_notice if config_en else config.site_notice) | safe }}</div>
         </div>
     </div>
     {% endif %}
@@ -102,12 +103,8 @@
         <div class="search-wrap" id="search-wrap">
             {# FIX: aria-input-field-name — search-input 配套 label + aria-label 满足无障碍要求 #}
             <label for="search-input" class="sr-only">搜索文章</label>
-            <input type="text" id="search-input" placeholder="搜索..." autocomplete="off" aria-label="搜索文章"
+            <input type="text" id="search-input" placeholder="搜索..." data-i18n-placeholder="search_placeholder" autocomplete="off" aria-label="搜索文章"
                 aria-controls="search-dropdown" aria-expanded="false">
-            <a href="{% if lang=='en' %}/{% else %}/en/{% endif %}" class="nav-lang"
-                aria-label="切换语言为 {{ i18n.lang_name }}" title="{{ i18n.lang_name }}">
-                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            </a>
             <button id="search-toggle" aria-label="打开搜索框" aria-expanded="false">
                 <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
@@ -128,7 +125,7 @@
                 </button>
             </div>
             <div class="nav-menu-links">
-                {% for np in nav_pages %}<a href="{{ np.url }}" data-spa>{{ np.title }}</a>{% endfor %}
+                {% for np in nav_pages %}<a href="{{ np.url }}" data-spa data-zh="{{ np.title | e }}" data-en="{{ (np.title_en | default(np.title)) | e }}">{{ np.title }}</a>{% endfor %}
             </div>
         </div>
     </div>
@@ -150,7 +147,7 @@
                 <h1 class="hero-name">{{ config.username | default(config.site_name) }}</h1>
                 {# 打字机效果由 _enhance.html 的 initHeroTyping() 接管：先服务端渲染完整文字
                    （零 JS / SEO 友好兜底），JS 可用时再清空重新逐字打出来。 #}
-                <p class="hero-bio">{{ config.bio }}</p>
+                <p class="hero-bio" data-zh="{{ config.bio | e }}" data-en="{{ (config_en.bio if config_en else config.bio) | e }}">{{ config.bio }}</p>
 
                 {% if config.contact_methods %}
                 <div class="hero-contacts">
@@ -216,7 +213,7 @@
 
                 {% if config.site_notice %}
                 <label class="notice-open-label hero-notice-trigger" for="notice-toggle" aria-label="查看站点公告">
-                    <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> 查看公告
+                    <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> <span data-i18n="view_notice">查看公告</span>
                 </label>
                 {% endif %}
             </div>
@@ -242,7 +239,7 @@
                 <div class="heatmap-head">
                     <div class="heatmap-title-wrap">
                         <svg class="svg-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-                        <h2 class="bento-title" id="gh-heatmap-title">GitHub 贡献热力图</h2>
+                        <h2 class="bento-title" id="gh-heatmap-title" data-i18n="gh_heatmap">GitHub 贡献热力图</h2>
                         {% if gh_user %}
                         <a class="heatmap-user" href="https://github.com/{{ gh_user }}" target="_blank" rel="noopener">@{{ gh_user }}</a>
                         {% endif %}
@@ -253,15 +250,15 @@
                     <div class="heatmap-grid" id="gh-heatmap-grid" role="img" aria-label="GitHub 近一年贡献热力图"></div>
                 </div>
                 <div class="heatmap-foot">
-                    <span class="heatmap-source" id="gh-heatmap-source">近一年活跃记录</span>
+                    <span class="heatmap-source" id="gh-heatmap-source" data-i18n="heatmap_source">近一年活跃记录</span>
                     <div class="heatmap-legend" aria-hidden="true">
-                        <span>少</span>
+                        <span data-i18n="heatmap_less">少</span>
                         <i class="hm-cell" data-level="0"></i>
                         <i class="hm-cell" data-level="1"></i>
                         <i class="hm-cell" data-level="2"></i>
                         <i class="hm-cell" data-level="3"></i>
                         <i class="hm-cell" data-level="4"></i>
-                        <span>多</span>
+                        <span data-i18n="heatmap_more">多</span>
                     </div>
                 </div>
             </div>
@@ -271,19 +268,19 @@
                 <div class="stats-grid-2x2">
                     <div class="stat-tile">
                         <span class="stat-val">{{ posts|length }}</span>
-                        <span class="stat-label">文章总数</span>
+                        <span class="stat-label" data-i18n="stat_posts">文章总数</span>
                     </div>
                     <div class="stat-tile">
                         <span class="stat-val">{{ categories_list|length if categories_list else 0 }}</span>
-                        <span class="stat-label">专栏分类</span>
+                        <span class="stat-label" data-i18n="stat_categories">专栏分类</span>
                     </div>
                     <div class="stat-tile">
                         <span class="stat-val" id="sidebar-days">—</span>
-                        <span class="stat-label">运行天数</span>
+                        <span class="stat-label" data-i18n="stat_days">运行天数</span>
                     </div>
                     <div class="stat-tile">
                         <span class="stat-val" id="clock">—</span>
-                        <span class="stat-label">当前时间</span>
+                        <span class="stat-label" data-i18n="stat_time">当前时间</span>
                     </div>
                 </div>
                 <div class="stats-quote">
@@ -296,12 +293,12 @@
         <main id="main-content" class="post-list" data-per-page="{{ posts_per_page | default(8) }}">
             <div class="posts-section-head">
                 <div class="posts-section-title">
-                    <h2>最新文章</h2>
-                    <span class="posts-count-pill">{{ posts|length }} 篇</span>
+                    <h2 data-i18n="latest_posts">最新文章</h2>
+                    <span class="posts-count-pill">{{ posts|length }} <span data-i18n="posts_unit">篇</span></span>
                 </div>
                 <div id="cnfte-filter-bar">
                     <span id="cnfte-clear-filter" class="cnfte-chip" style="border-color:var(--border-accent)">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> 清除筛选
+                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> <span data-i18n="clear_filter">清除筛选</span>
                     </span>
                 </div>
             </div>
@@ -325,13 +322,12 @@
                 <div class="post-content">
                     <div class="post-meta">
                         <span>{{ p.date }}</span>
-                        <span>{{ p.read_time }} {{ i18n.read_unit }}</span>
-                        {% if p.category %}<span class="tag">{{ p.category }}</span>{% endif %}
-                        {% if p.tags %}<span class="tag">{{ p.tags[0] if p.tags is iterable and p.tags is not string
-                            else p.tags }}</span>{% endif %}
+                        <span>{{ p.read_time }} <span data-i18n="read_unit">{{ i18n.read_unit }}</span></span>
+                        {% if p.category %}<span class="tag" data-zh="{{ p.category | e }}" data-en="{{ (p.category_en | default(p.category)) | e }}">{{ p.category }}</span>{% endif %}
+                        {% if p.tags %}{% set first_tag = p.tags[0] if p.tags is iterable and p.tags is not string else p.tags %}{% set first_tag_en = (p.tags_en[0] if p.tags_en else first_tag) %}<span class="tag" data-zh="{{ first_tag | e }}" data-en="{{ first_tag_en | e }}">{{ first_tag }}</span>{% endif %}
                     </div>
-                    <a href="{{ p.url }}" class="post-title" data-spa>{{ p.title }}</a>
-                    <p class="post-summary">{{ p.summary }}</p>
+                    <a href="{{ p.url }}" class="post-title" data-spa data-zh="{{ p.title | e }}" data-en="{{ (p.title_en | default(p.title)) | e }}">{{ p.title }}</a>
+                    <p class="post-summary" data-zh="{{ p.summary | e }}" data-en="{{ (p.summary_en | default(p.summary)) | e }}">{{ p.summary }}</p>
                 </div>
             </article>
             {% else %}
@@ -369,7 +365,7 @@
 
             {% if config.enable_player %}
             <section data-cnfte-reveal="right" class="widget player-widget" id="cnfte-player-widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> 正在播放</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> <span data-i18n="now_playing">正在播放</span></h2>
                 <button class="player-list-toggle" id="player-list-toggle" aria-label="展开播放列表" aria-expanded="false">
                     <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
@@ -401,10 +397,10 @@
 
             {% if categories_list %}
             <section data-cnfte-reveal="right" class="widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> 分类</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> <span data-i18n="categories">分类</span></h2>
                 <div style="display:flex;flex-wrap:wrap;gap:8px">
                     {% for cat, count in categories_list %}
-                    <span class="cnfte-chip" data-cat="{{ cat }}">{{ cat }} <span class="chip-count">{{ count }}</span></span>
+                    <span class="cnfte-chip" data-cat="{{ cat }}"><span data-zh="{{ cat | e }}" data-en="{{ (categories_en_map.get(cat, cat) if categories_en_map else cat) | e }}">{{ cat }}</span> <span class="chip-count">{{ count }}</span></span>
                     {% endfor %}
                 </div>
             </section>
@@ -413,14 +409,14 @@
 
             {% if tags_list %}
             <section data-cnfte-reveal="right" class="widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> 标签云</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> <span data-i18n="tags_cloud">标签云</span></h2>
                 <div style="display:flex;flex-wrap:wrap;gap:8px">
                     {% for tag, count in tags_list[:5] %}
-                    <span class="cnfte-chip" data-tag="{{ tag }}">#{{ tag }} <span class="chip-count">{{ count }}</span></span>
+                    <span class="cnfte-chip" data-tag="{{ tag }}">#<span data-zh="{{ tag | e }}" data-en="{{ (tags_en_map.get(tag, tag) if tags_en_map else tag) | e }}">{{ tag }}</span> <span class="chip-count">{{ count }}</span></span>
                     {% endfor %}
                     {% if tags_list | length > 5 %}
-                    <a class="cnfte-chip" href="{{ '/en/' if lang == 'en' else '/' }}?tags=all" data-spa style="border-style:dashed">
-                        展开全部（{{ tags_list | length }}）<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    <a class="cnfte-chip" href="/?tags=all" data-spa style="border-style:dashed">
+                        <span data-i18n="expand_all">展开全部</span>（{{ tags_list | length }}）<svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
                     </a>
                     {% endif %}
                 </div>
@@ -430,25 +426,25 @@
 
             {% if archive_list %}
             <section data-cnfte-reveal="right" class="widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> 归档</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg> <span data-i18n="archive">归档</span></h2>
                 <div id="cnfte-archive-years" class="cnfte-archive-level">
                     {% for y in archive_list %}
                     <div class="cnfte-archive-row" data-year="{{ y.year }}">
-                        <span>{{ y.year }} 年</span>
-                        <span class="arc-count">{{ y.count }} 篇 <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
+                        <span>{{ y.year }} <span data-i18n="year_unit">年</span></span>
+                        <span class="arc-count">{{ y.count }} <span data-i18n="posts_unit">篇</span> <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></span>
                     </div>
                     {% endfor %}
                 </div>
                 <div id="cnfte-archive-months" class="cnfte-archive-level" style="display:none">
                     <div class="cnfte-archive-back" id="cnfte-archive-back">
                         <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-                        <span id="cnfte-archive-month-title">返回年份</span>
+                        <span id="cnfte-archive-month-title" data-i18n="back_years">返回年份</span>
                     </div>
                     {% for y in archive_list %}
                     {% for m in y.months %}
                     <div class="cnfte-archive-row" data-year="{{ y.year }}" data-month="{{ m.month }}">
                         <span>{{ y.year }}-{{ m.month }}</span>
-                        <span class="arc-count">{{ m.count }} 篇</span>
+                        <span class="arc-count">{{ m.count }} <span data-i18n="posts_unit">篇</span></span>
                     </div>
                     {% endfor %}
                     {% endfor %}
@@ -459,9 +455,10 @@
 
             {% if config.anime_list %}
             <section data-cnfte-reveal="right" class="widget anime-widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg> 正在追番</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg> <span data-i18n="anime_list">正在追番</span></h2>
                 <div class="anime-list">
                     {% for anime in config.anime_list %}
+                    {% set an_en = (config_en.anime_list[loop.index0] if (config_en and config_en.anime_list and loop.index0 < (config_en.anime_list | length)) else None) %}
                     <div class="anime-item">
                         {% if anime.cover %}
                         <img src="{{ anime.cover }}" class="anime-cover" alt="{{ anime.title }} 封面" width="46"
@@ -470,14 +467,14 @@
                         <div class="anime-cover-placeholder" aria-hidden="true"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="8" x2="22" y2="8"/></svg></div>
                         {% endif %}
                         <div class="anime-info">
-                            <span class="anime-title">{{ anime.title }}</span>
+                            <span class="anime-title" data-zh="{{ anime.title | e }}" data-en="{{ (an_en.title if (an_en and an_en.title) else anime.title) | e }}">{{ anime.title }}</span>
                             <div class="anime-ep">
                                 {% if anime.ep %}EP {{ anime.ep }}{% if anime.total %} / {{ anime.total }}{% endif %}{%
                                 endif %}
-                                {% if anime.note %} · {{ anime.note }}{% endif %}
+                                {% if anime.note %} · <span data-zh="{{ anime.note | e }}" data-en="{{ (an_en.note if (an_en and an_en.note) else anime.note) | e }}">{{ anime.note }}</span>{% endif %}
                             </div>
                         </div>
-                        <span class="anime-status {{ 'airing' if anime.status == 'airing' else 'ended' }}">
+                        <span class="anime-status {{ 'airing' if anime.status == 'airing' else 'ended' }}" data-i18n="{{ 'anime_airing' if anime.status == 'airing' else 'anime_ended' }}">
                             {{ '连载中' if anime.status == 'airing' else '完结' }}
                         </span>
                     </div>
@@ -489,9 +486,10 @@
 
             {% if config.site_notice and config.show_notice_widget %}
             <section data-cnfte-reveal="right" class="widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> 站点公告</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> <span data-i18n="site_notice_title">站点公告</span></h2>
                 {# FIX: crawlable-anchors — notice widget 内链接确保用 href 属性 #}
-                <div class="notice-widget-content">{{ config.site_notice | safe }}</div>
+                <div class="notice-widget-content" data-lang-block="zh">{{ config.site_notice | safe }}</div>
+                <div class="notice-widget-content" data-lang-block="en" hidden>{{ (config_en.site_notice if config_en else config.site_notice) | safe }}</div>
             </section>
             {% endif %}
         </aside>
@@ -499,7 +497,8 @@
 
     <footer id="site-footer" data-cnfte-reveal="pop" data-cnfte-reveal-repeat="1">
         <div class="foot-left">
-            <div class="foot-text">{{ config.footer_text | default(config.footer_custom) | safe }}</div>
+            <div class="foot-text" data-lang-block="zh">{{ config.footer_text | default(config.footer_custom) | safe }}</div>
+            <div class="foot-text" data-lang-block="en" hidden>{{ (config_en.footer_html if (config_en and config_en.footer_html) else (config.footer_text | default(config.footer_custom))) | safe }}</div>
             <div class="foot-copy">© {{ datetime.now().year }} {{ config.username | default(config.site_name) }} · Powered by ModernBlog</div>
         </div>
         <div class="foot-right">

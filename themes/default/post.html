@@ -109,12 +109,8 @@
         <a href="/" class="logo" aria-label="{{ config.site_name }} 首页">{{ config.logo_text }}</a>
         <div class="search-wrap" id="search-wrap">
             <label for="search-input" class="sr-only">搜索文章</label>
-            <input type="text" id="search-input" placeholder="搜索..." autocomplete="off" aria-label="搜索文章"
+            <input type="text" id="search-input" placeholder="搜索..." data-i18n-placeholder="search_placeholder" autocomplete="off" aria-label="搜索文章"
                 aria-controls="search-dropdown" aria-expanded="false">
-            <a href="{% if lang=='en' %}/{% else %}/en/{% endif %}" class="nav-lang"
-                aria-label="切换语言为 {{ i18n.lang_name }}" title="{{ i18n.lang_name }}">
-                <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            </a>
             <button id="search-toggle" aria-label="打开搜索框" aria-expanded="false">
                 <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </button>
@@ -133,8 +129,8 @@
                 </button>
             </div>
             <div class="nav-menu-links">
-                <a href="/" data-spa>{{ i18n.home }}</a>
-                {% for np in nav_pages %}<a href="{{ np.url }}" data-spa>{{ np.title }}</a>{% endfor %}
+                <a href="/" data-spa data-i18n="home">{{ i18n.home }}</a>
+                {% for np in nav_pages %}<a href="{{ np.url }}" data-spa data-zh="{{ np.title | e }}" data-en="{{ (np.title_en | default(np.title)) | e }}">{{ np.title }}</a>{% endfor %}
             </div>
         </div>
     </div>
@@ -152,19 +148,20 @@
             {% endif %}
             <div class="post-hero-gradient" aria-hidden="true"></div>
             <div class="post-header-content">
-                <p class="post-tagline">{{ post.date }}{% if not post.is_page %} // {{ post.read_time }} {{ i18n.read_unit }}{% endif %}</p>
-                <h1>{{ post.title }}</h1>
+                <p class="post-tagline">{{ post.date }}{% if not post.is_page %} // {{ post.read_time }} <span data-i18n="read_unit">{{ i18n.read_unit }}</span>{% endif %}</p>
+                <h1 data-zh="{{ post.title | e }}" data-en="{{ (post.title_en | default(post.title)) | e }}">{{ post.title }}</h1>
                 {% if post.category or post.tags %}
                 <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
                     {% if post.category %}
                     <a class="cnfte-chip" data-spa
-                        href="{{ '/en/' if lang == 'en' else '/' }}?category={{ post.category | urlencode }}">
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> {{ post.category }}
+                        href="/?category={{ post.category | urlencode }}">
+                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg> <span data-zh="{{ post.category | e }}" data-en="{{ (post.category_en | default(post.category)) | e }}">{{ post.category }}</span>
                     </a>
                     {% endif %}
                     {% for t in post.tags %}
+                    {% set t_en = (post.tags_en[loop.index0] if (post.tags_en and loop.index0 < (post.tags_en | length)) else t) %}
                     <a class="cnfte-chip" data-spa
-                        href="{{ '/en/' if lang == 'en' else '/' }}?tag={{ t | urlencode }}">#{{ t }}</a>
+                        href="/?tag={{ t | urlencode }}">#<span data-zh="{{ t | e }}" data-en="{{ t_en | e }}">{{ t }}</span></a>
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -194,10 +191,11 @@
             {% endif %}
 
             <article class="post-container">
-                <div class="post-body">{{ post.content | safe }}</div>
+                <div class="post-body" data-lang-block="zh">{{ post.content | safe }}</div>
+                <div class="post-body" data-lang-block="en" hidden>{{ (post.content_en | default(post.content)) | safe }}</div>
                 <div class="btn-wrapper">
                     <a href="/" class="back-btn" data-spa>
-                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> 返回首页
+                        <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg> <span data-i18n="back_home">返回首页</span>
                     </a>
                 </div>
             </article>
@@ -212,7 +210,7 @@
                     height="72" loading="lazy" decoding="async">
                 {% endif %}
                 <div class="profile-name">{{ config.username }}</div>
-                <p class="profile-bio">{{ config.bio }}</p>
+                <p class="profile-bio" data-zh="{{ config.bio | e }}" data-en="{{ (config_en.bio if config_en else config.bio) | e }}">{{ config.bio }}</p>
                 {% if config.contact_methods %}
                 <div class="social-links">
                     {% for c in config.contact_methods %}
@@ -275,7 +273,7 @@
 
             {% if config.enable_player %}
             <section data-cnfte-reveal="right" class="widget player-widget" id="cnfte-player-widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> 正在播放</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> <span data-i18n="now_playing">正在播放</span></h2>
                 <button class="player-list-toggle" id="player-list-toggle" aria-label="展开播放列表" aria-expanded="false">
                     <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
@@ -307,17 +305,19 @@
 
             {% if post.toc %}
             <section data-cnfte-reveal="right" class="widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> 目录</h2>
-                <div class="toc-widget">{{ post.toc | safe }}</div>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> <span data-i18n="toc">目录</span></h2>
+                <div class="toc-widget" data-lang-block="zh">{{ post.toc | safe }}</div>
+                <div class="toc-widget" data-lang-block="en" hidden>{{ (post.toc_en | default(post.toc)) | safe }}</div>
             </section>
             {% endif %}
 
 
             {% if config.anime_list %}
             <section data-cnfte-reveal="right" class="widget">
-                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg> 正在追番</h2>
+                <h2 class="widget-title"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg> <span data-i18n="anime_list">正在追番</span></h2>
                 <div class="anime-list">
                     {% for anime in config.anime_list %}
+                    {% set an_en = (config_en.anime_list[loop.index0] if (config_en and config_en.anime_list and loop.index0 < (config_en.anime_list | length)) else None) %}
                     <div class="anime-item">
                         {% if anime.cover %}
                         <img src="{{ anime.cover }}" class="anime-cover" alt="{{ anime.title }} 封面" width="40"
@@ -326,14 +326,14 @@
                         <div class="anime-cover-placeholder" aria-hidden="true"><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="8" x2="22" y2="8"/></svg></div>
                         {% endif %}
                         <div class="anime-info">
-                            <span class="anime-title">{{ anime.title }}</span>
+                            <span class="anime-title" data-zh="{{ anime.title | e }}" data-en="{{ (an_en.title if (an_en and an_en.title) else anime.title) | e }}">{{ anime.title }}</span>
                             <div class="anime-ep">
                                 {% if anime.ep %}EP {{ anime.ep }}{% if anime.total %}/{{ anime.total }}{% endif %}{%
                                 endif %}
-                                {% if anime.note %} · {{ anime.note }}{% endif %}
+                                {% if anime.note %} · <span data-zh="{{ anime.note | e }}" data-en="{{ (an_en.note if (an_en and an_en.note) else anime.note) | e }}">{{ anime.note }}</span>{% endif %}
                             </div>
                         </div>
-                        <span class="anime-status {{ 'airing' if anime.status == 'airing' else 'ended' }}">
+                        <span class="anime-status {{ 'airing' if anime.status == 'airing' else 'ended' }}" data-i18n="{{ 'anime_airing' if anime.status == 'airing' else 'anime_ended' }}">
                             {{ '连载中' if anime.status == 'airing' else '完结' }}
                         </span>
                     </div>
@@ -348,8 +348,7 @@
                 </div>
                 <div class="t-line">&gt; <span class="t-accent">TIME</span>: <span id="live-clock"
                         class="t-val">—</span></div>
-                <div class="t-line">&gt; <span class="t-accent">READ</span>: <span class="t-val">~{{ post.read_time }}{{
-                        i18n.read_unit }}</span></div>
+                <div class="t-line">&gt; <span class="t-accent">READ</span>: <span class="t-val">~{{ post.read_time }} <span data-i18n="read_unit">{{ i18n.read_unit }}</span></span></div>
                 <div class="t-dim">&gt; EOF</div>
             </section>
         </aside>
@@ -357,7 +356,8 @@
 
     <footer id="site-footer" data-cnfte-reveal="pop" data-cnfte-reveal-repeat="1">
         <div class="foot-left">
-            <div class="foot-text">{{ config.footer_text | default(config.footer_custom) | safe }}</div>
+            <div class="foot-text" data-lang-block="zh">{{ config.footer_text | default(config.footer_custom) | safe }}</div>
+            <div class="foot-text" data-lang-block="en" hidden>{{ (config_en.footer_html if (config_en and config_en.footer_html) else (config.footer_text | default(config.footer_custom))) | safe }}</div>
             <div class="foot-copy">© {{ datetime.now().year }} {{ config.username | default(config.site_name) }} · Powered by ModernBlog</div>
         </div>
         <div class="foot-right">

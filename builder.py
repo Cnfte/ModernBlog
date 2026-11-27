@@ -10,6 +10,12 @@ import re
 import random
 import time
 import colorsys
+import hashlib
+import threading
+import urllib.request
+import urllib.parse
+from html.parser import HTMLParser
+from html import escape as _html_escape
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -19,11 +25,242 @@ except ImportError:
     _am = None
 
 I18N = {
-    "zh": {"home": "首页", "lang_name": "EN", "lang_link": "/en/", "read_unit": "分钟"},
+    "zh": {"home": "首页", "lang_name": "EN", "lang_link": "/", "read_unit": "分钟"},
     "en": {"home": "HOME", "lang_name": "ZH", "lang_link": "/", "read_unit": "min"}
 }
 
 MD_EXTENSIONS = ['fenced_code', 'tables', 'toc', 'codehilite', 'nl2br', 'sane_lists']
+
+_CJK_RE = re.compile(r'[\u3400-\u9fff\uf900-\ufaff]')
+_SKIP_TRANS_TAGS = frozenset({'script', 'style', 'code', 'pre', 'kbd', 'svg', 'math', 'noscript', 'textarea'})
+_SKIP_TRANS_CLASSES = frozenset({
+    'post-math-block', 'post-math-inline', 'mb-mermaid', 'mb-terminal',
+    'mb-diff', 'codehilite', 'mb-kbd-keys'
+})
+
+
+class _AutoTranslator:
+    """构建期中→英自动翻译器（带 content/.i18n_cache.json 本地持久化缓存，零外部依赖）。"""
+
+    def __init__(self, cache_path: str, enabled: bool = True):
+        self.cache_path = cache_path
+        self.enabled = enabled
+        self._lock = threading.Lock()
+        self._dirty = False
+        self._cache: dict[str, str] = {}
+        self._net_failed = 0
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    self._cache = data
+            except Exception:
+                self._cache = {}
+
+    def _key(self, text: str) -> str:
+        return hashlib.sha256(text.encode('utf-8')).hexdigest()[:24]
+
+    def save(self):
+        if not self._dirty:
+            return
+        try:
+            os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+            with self._lock:
+                tmp = self.cache_path + '.tmp'
+                with open(tmp, 'w', encoding='utf-8') as f:
+                    json.dump(self._cache, f, ensure_ascii=False, indent=2)
+                os.replace(tmp, self.cache_path)
+                self._dirty = False
+        except Exception as e:
+            print(f"[WARN] 保存翻译缓存失败: {e}")
+
+    def _call_google(self, text: str) -> str | None:
+        url = (
+            'https://translate.googleapis.com/translate_a/single'
+            '?client=gtx&sl=zh-CN&tl=en&dt=t&q=' + urllib.parse.quote(text)
+        )
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        try:
+            with urllib.request.urlopen(req, timeout=6) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            if isinstance(data, list) and data and isinstance(data[0], list):
+                out = ''.join(seg[0] for seg in data[0] if isinstance(seg, list) and seg and seg[0])
+                return out if out else None
+        except Exception:
+            return None
+        return None
+
+    def translate_text(self, text: str) -> str:
+        if not text or not self.enabled or not _CJK_RE.search(text):
+            return text
+        stripped = text.strip()
+        if not stripped:
+            return text
+        k = self._key(stripped)
+        with self._lock:
+            cached = self._cache.get(k)
+        if cached is not None:
+            lead = text[:len(text) - len(text.lstrip())]
+            trail = text[len(text.rstrip()):]
+            return lead + cached + trail
+        if self._net_failed >= 6:
+            return text
+        res = self._call_google(stripped)
+        if res is not None:
+            with self._lock:
+                self._cache[k] = res
+                self._dirty = True
+            lead = text[:len(text) - len(text.lstrip())]
+            trail = text[len(text.rstrip()):]
+            return lead + res + trail
+        with self._lock:
+            self._net_failed += 1
+        return text
+
+    def translate_many(self, texts: list[str]) -> list[str]:
+        """批量合并请求以大幅加速首次构建，同时逐条写入缓存。"""
+        if not self.enabled or not texts:
+            return list(texts)
+        results = list(texts)
+        missing_idx: list[int] = []
+        missing_clean: list[str] = []
+        for idx, raw in enumerate(texts):
+            if not raw or not _CJK_RE.search(raw):
+                continue
+            s = raw.strip()
+            if not s:
+                continue
+            k = self._key(s)
+            with self._lock:
+                c = self._cache.get(k)
+            if c is not None:
+                lead = raw[:len(raw) - len(raw.lstrip())]
+                trail = raw[len(raw.rstrip()):]
+                results[idx] = lead + c + trail
+            else:
+                missing_idx.append(idx)
+                missing_clean.append(s)
+
+        if not missing_idx or self._net_failed >= 6:
+            return results
+
+        # 按字符数分批，每批 <= 1400 字符，用不易被翻译改写的数字分隔符拼接
+        batch_start = 0
+        while batch_start < len(missing_idx):
+            if self._net_failed >= 6:
+                break
+            batch_i = []
+            batch_s = []
+            total_len = 0
+            while batch_start < len(missing_idx):
+                s = missing_clean[batch_start]
+                if batch_s and total_len + len(s) + 16 > 1400:
+                    break
+                batch_i.append(missing_idx[batch_start])
+                batch_s.append(s)
+                total_len += len(s) + 16
+                batch_start += 1
+
+            if len(batch_s) == 1:
+                tr = self.translate_text(texts[batch_i[0]])
+                results[batch_i[0]] = tr
+                continue
+
+            sep = '\n[[[MBSEP]]]\n'
+            joined = sep.join(batch_s)
+            translated = self._call_google(joined)
+            parts = None
+            if translated is not None:
+                parts = re.split(r'\s*\[\[\[\s*MBSEP\s*\]\]\]\s*', translated)
+            if parts is not None and len(parts) == len(batch_s):
+                with self._lock:
+                    for bi, orig_s, en_s in zip(batch_i, batch_s, parts):
+                        en_clean = en_s.strip()
+                        if en_clean:
+                            self._cache[self._key(orig_s)] = en_clean
+                            self._dirty = True
+                            raw = texts[bi]
+                            lead = raw[:len(raw) - len(raw.lstrip())]
+                            trail = raw[len(raw.rstrip()):]
+                            results[bi] = lead + en_clean + trail
+            else:
+                # 若分隔符被改写，退回逐条翻译（仍然写入缓存）
+                for bi in batch_i:
+                    results[bi] = self.translate_text(texts[bi])
+        return results
+
+    def translate_html(self, html_str: str) -> str:
+        """解析 HTML，仅翻译非代码/非数学/非图表元素的中文文本节点，100% 保留标签与属性。"""
+        if not html_str or not self.enabled or not _CJK_RE.search(html_str):
+            return html_str
+
+        tokens: list[tuple[str, str]] = []  # ('raw', ...) or ('text', ...)
+        skip_stack: list[bool] = []
+        void_tags = frozenset({
+            'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+            'link', 'meta', 'param', 'source', 'track', 'wbr'
+        })
+
+        class _Parser(HTMLParser):
+            def __init__(self):
+                super().__init__(convert_charrefs=False)
+
+            def handle_starttag(self, tag, attrs):
+                t = tag.lower()
+                raw_tag = self.get_starttag_text() or f'<{tag}>'
+                tokens.append(('raw', raw_tag))
+                if t in void_tags:
+                    return
+                cls_val = ''
+                for k, v in attrs:
+                    if k.lower() == 'class' and v:
+                        cls_val = v
+                cls_set = set(cls_val.split())
+                should_skip = (t in _SKIP_TRANS_TAGS) or bool(cls_set & _SKIP_TRANS_CLASSES)
+                parent_skip = skip_stack[-1] if skip_stack else False
+                skip_stack.append(parent_skip or should_skip)
+
+            def handle_startendtag(self, tag, attrs):
+                raw_tag = self.get_starttag_text() or f'<{tag}/>'
+                tokens.append(('raw', raw_tag))
+
+            def handle_endtag(self, tag):
+                tokens.append(('raw', f'</{tag}>'))
+                if skip_stack:
+                    skip_stack.pop()
+
+            def handle_data(self, data):
+                if (skip_stack and skip_stack[-1]) or not _CJK_RE.search(data):
+                    tokens.append(('raw', data))
+                else:
+                    tokens.append(('text', data))
+
+            def handle_entityref(self, name):
+                tokens.append(('raw', f'&{name};'))
+
+            def handle_charref(self, name):
+                tokens.append(('raw', f'&#{name};'))
+
+            def handle_comment(self, data):
+                tokens.append(('raw', f'<!--{data}-->'))
+
+        try:
+            parser = _Parser()
+            parser.feed(html_str)
+            parser.close()
+        except Exception:
+            return html_str
+
+        text_positions = [i for i, (kind, _) in enumerate(tokens) if kind == 'text']
+        if not text_positions:
+            return html_str
+
+        originals = [tokens[i][1] for i in text_positions]
+        translated = self.translate_many(originals)
+        for pos, en_val in zip(text_positions, translated):
+            tokens[pos] = ('raw', _html_escape(en_val, quote=False))
+        return ''.join(val for _, val in tokens)
 
 
 def _derive_theme_colors(hex_color: str) -> dict:
@@ -408,174 +645,274 @@ def build():
     all_links = []
     noindex_urls = set()
 
-    for lang in ('zh', 'en'):
-        lang_out = OUTPUT_DIR if lang == 'zh' else os.path.join(OUTPUT_DIR, lang)
-        url_prefix = '/' if lang == 'zh' else '/en/'
-        os.makedirs(lang_out, exist_ok=True)
+    auto_translate = bool(config.get('auto_translate_en', True))
+    translator = _AutoTranslator(os.path.join(CONTENT_DIR, '.i18n_cache.json'), enabled=auto_translate)
 
-        if lang == 'en' and os.path.exists(attach_src):
-            _copy_tree_fast(attach_src, os.path.join(lang_out, 'attachments'))
-            _copy_tree_fast(attach_src, os.path.join(lang_out, 'assets'))
+    # 预加载手工英文版（如用户在 content/posts/en/ 或 content/pages/en/ 写了手动翻译，优先采用）
+    manual_en_posts = {}
+    en_post_dir = os.path.join(CONTENT_DIR, 'posts', 'en')
+    if os.path.exists(en_post_dir):
+        for fn in os.listdir(en_post_dir):
+            if fn.endswith('.md'):
+                try:
+                    ep = frontmatter.load(os.path.join(en_post_dir, fn))
+                    e_uid = str(ep.get('uid', '') or '').strip()
+                    if e_uid:
+                        manual_en_posts[e_uid] = ep
+                    manual_en_posts[fn] = ep
+                except Exception:
+                    pass
 
-        search_index = []
+    manual_en_pages = {}
+    en_page_dir = os.path.join(CONTENT_DIR, 'pages', 'en')
+    if os.path.exists(en_page_dir):
+        for fn in os.listdir(en_page_dir):
+            if fn.endswith('.md'):
+                try:
+                    manual_en_pages[fn] = frontmatter.load(os.path.join(en_page_dir, fn))
+                except Exception:
+                    pass
 
-        nav_pages = []
-        page_src = os.path.join(CONTENT_DIR, 'pages', lang)
-        if os.path.exists(page_src):
-            for fn in sorted(f for f in os.listdir(page_src) if f.endswith('.md')):
-                p = frontmatter.load(os.path.join(page_src, fn))
-                url = (url_prefix + fn.replace('.md', '.html')).replace('//', '/')
-                nav_pages.append({'title': p.get('title', fn), 'url': url})
+    # 翻译站点级文本（bio / site_name / site_notice / footer / anime_list）
+    raw_footer = str(config.get('footer_text') or config.get('footer_custom') or '')
+    anime_en_list = []
+    for _an in (config.get('anime_list') or []):
+        if isinstance(_an, dict):
+            _t_en, _n_en = translator.translate_many([
+                str(_an.get('title', '') or ''),
+                str(_an.get('note', '') or ''),
+            ])
+            anime_en_list.append({'title': _t_en, 'note': _n_en})
+        else:
+            anime_en_list.append({'title': '', 'note': ''})
 
-        def render_page(fn, src_dir, out_dir, u_prefix):
-            fp = os.path.join(src_dir, fn)
-            p = frontmatter.load(fp)
-            uid = _inject_uid(fp, p)
-            html, toc = _render_md(p.content)
-            final_url = (u_prefix + fn.replace('.md', '.html')).replace('//', '/')
-            _noindex = bool(p.get('noindex', False)) or 'noindex' in str(p.get('robots', ''))
-            # 确保 date 是字符串（frontmatter 可能解析为 datetime.date 对象）
-            raw_date = p.get('date', '')
-            date_str = str(raw_date) if raw_date else ''
-            meta = {**p.metadata,
-                    'url': final_url,
-                    'uid': uid,
-                    'content': html,
-                    'toc': toc,
-                    'date': date_str,
-                    'read_time': max(1, math.ceil(len(p.content) / 450)),
-                    'is_page': True,
-                    'noindex': _noindex,
-                    'description': _get_meta_desc(p.content, p.get('description', ''))}
-            _resolve_cover_url(meta, uid, post_bg_urls, random_img_api)
-            out = os.path.join(out_dir, fn.replace('.md', '.html'))
-            with open(out, 'w', encoding='utf-8') as f:
-                f.write(post_tpl.render(post=meta, i18n=I18N[lang], lang=lang,
-                                        config=config, nav_pages=nav_pages, theme_colors=theme_colors,
-                                        audio_tracks=audio_tracks))
-            return final_url, meta.get('title', fn), _noindex
+    config_en = {
+        'site_name': translator.translate_text(str(config.get('site_name', '') or '')),
+        'bio': translator.translate_text(str(config.get('bio', '') or '')),
+        'site_notice': translator.translate_html(str(config.get('site_notice', '') or '')),
+        'footer_html': translator.translate_html(raw_footer),
+        'anime_list': anime_en_list,
+    }
 
-        if os.path.exists(page_src):
-            fns = [f for f in os.listdir(page_src) if f.endswith('.md')]
-            with ThreadPoolExecutor(max_workers=6) as ex:
-                futs = {ex.submit(render_page, fn, page_src, lang_out, url_prefix): fn for fn in fns}
-                for fut in as_completed(futs):
-                    try:
-                        url, title, _ni = fut.result()
-                        all_links.append(url)
-                        if _ni:
-                            noindex_urls.add(url)
-                        search_index.append({'title': title, 'url': url})
-                    except Exception as e:
-                        print(f"[WARN] 页面渲染错误: {e}")
+    lang = 'zh'
+    lang_out = OUTPUT_DIR
+    url_prefix = '/'
+    os.makedirs(lang_out, exist_ok=True)
+    search_index = []
 
-        def render_post(fn, src_dir, out_base, u_prefix):
-            fp = os.path.join(src_dir, fn)
-            p = frontmatter.load(fp)
-            uid = _inject_uid(fp, p)
-            html, toc = _render_md(p.content)
-            post_dir = os.path.join(out_base, 'archive', uid)
-            os.makedirs(post_dir, exist_ok=True)
-            final_url = (u_prefix + f'archive/{uid}/').replace('//', '/')
-            summary = _get_meta_desc(p.content, p.get('description', ''))
-            _noindex = bool(p.get('noindex', False)) or 'noindex' in str(p.get('robots', ''))
-            tags = p.get('tags', [])
-            if isinstance(tags, str):
-                tags = [t.strip() for t in tags.split(',') if t.strip()]
-            category = _extract_category(p)
-            # 确保 date 是字符串（frontmatter 可能解析为 datetime.date 对象）
-            raw_date = p.get('date', '')
-            date_str = str(raw_date) if raw_date else ''
-            meta = {**p.metadata,
-                    'url': final_url,
-                    'uid': uid,
-                    'content': html,
-                    'toc': toc,
-                    'summary': summary,
-                    'description': summary,
-                    'read_time': max(1, math.ceil(len(p.content) / 450)),
-                    'tags': tags,
-                    'category': category,
-                    'date': date_str,
-                    'is_page': False,
-                    'noindex': _noindex}
-            # 封面图优先级：frontmatter 手动 cover（已在 **p.metadata 中）
-            #   > 固定图池随机抽取 > 随机图 API（带 uid，前端各自请求，零构建开销且不重复）
-            _resolve_cover_url(meta, uid, post_bg_urls, random_img_api)
-            with open(os.path.join(post_dir, 'index.html'), 'w', encoding='utf-8') as f:
-                f.write(post_tpl.render(post=meta, i18n=I18N[lang], lang=lang,
-                                        config=config, nav_pages=nav_pages, theme_colors=theme_colors,
-                                        audio_tracks=audio_tracks))
-            return final_url, meta, _noindex
+    nav_pages = []
+    page_src = os.path.join(CONTENT_DIR, 'pages', 'zh')
+    if os.path.exists(page_src):
+        for fn in sorted(f for f in os.listdir(page_src) if f.endswith('.md')):
+            p = frontmatter.load(os.path.join(page_src, fn))
+            url = (url_prefix + fn.replace('.md', '.html')).replace('//', '/')
+            zh_title = str(p.get('title', fn))
+            mp = manual_en_pages.get(fn)
+            en_title = str(mp.get('title', '')) if (mp and mp.get('title')) else translator.translate_text(zh_title)
+            nav_pages.append({'title': zh_title, 'title_en': en_title, 'url': url})
 
-        posts_data = []
-        post_src = os.path.join(CONTENT_DIR, 'posts', lang)
-        if os.path.exists(post_src):
-            fns = [f for f in os.listdir(post_src) if f.endswith('.md')]
-            with ThreadPoolExecutor(max_workers=6) as ex:
-                futs = {ex.submit(render_post, fn, post_src, lang_out, url_prefix): fn for fn in fns}
-                for fut in as_completed(futs):
-                    try:
-                        url, meta, _ni = fut.result()
-                        posts_data.append(meta)
-                        all_links.append(url)
-                        if _ni:
-                            noindex_urls.add(url)
-                        search_index.append({'title': meta.get('title', ''), 'url': url})
-                    except Exception as e:
-                        print(f"[WARN] 文章渲染错误: {e}")
+    def render_page(fn, src_dir, out_dir, u_prefix):
+        fp = os.path.join(src_dir, fn)
+        p = frontmatter.load(fp)
+        uid = _inject_uid(fp, p)
+        html, toc = _render_md(p.content)
+        mp = manual_en_pages.get(fn)
+        if mp is not None:
+            html_en, toc_en = _render_md(mp.content)
+            title_en = str(mp.get('title', '') or translator.translate_text(str(p.get('title', fn))))
+        else:
+            html_en = translator.translate_html(html)
+            toc_en = translator.translate_html(toc)
+            title_en = translator.translate_text(str(p.get('title', fn)))
+        final_url = (u_prefix + fn.replace('.md', '.html')).replace('//', '/')
+        _noindex = bool(p.get('noindex', False)) or 'noindex' in str(p.get('robots', ''))
+        raw_date = p.get('date', '')
+        date_str = str(raw_date) if raw_date else ''
+        meta = {**p.metadata,
+                'url': final_url,
+                'uid': uid,
+                'title_en': title_en,
+                'content': html,
+                'content_en': html_en,
+                'toc': toc,
+                'toc_en': toc_en,
+                'date': date_str,
+                'read_time': max(1, math.ceil(len(p.content) / 450)),
+                'is_page': True,
+                'noindex': _noindex,
+                'description': _get_meta_desc(p.content, p.get('description', ''))}
+        _resolve_cover_url(meta, uid, post_bg_urls, random_img_api)
+        out = os.path.join(out_dir, fn.replace('.md', '.html'))
+        with open(out, 'w', encoding='utf-8') as f:
+            f.write(post_tpl.render(post=meta, i18n=I18N[lang], lang=lang,
+                                    config=config, config_en=config_en, nav_pages=nav_pages,
+                                    theme_colors=theme_colors, audio_tracks=audio_tracks))
+        return final_url, meta.get('title', fn), title_en, _noindex
 
-        def _date_key(val):
-            m = re.match(r'^\s*(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})', str(val or ''))
-            return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else (0, 0, 0)
+    if os.path.exists(page_src):
+        fns = [f for f in os.listdir(page_src) if f.endswith('.md')]
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            futs = {ex.submit(render_page, fn, page_src, lang_out, url_prefix): fn for fn in fns}
+            for fut in as_completed(futs):
+                try:
+                    url, title, title_en, _ni = fut.result()
+                    all_links.append(url)
+                    if _ni:
+                        noindex_urls.add(url)
+                    search_index.append({'title': title, 'title_en': title_en, 'url': url})
+                except Exception as e:
+                    print(f"[WARN] 页面渲染错误: {e}")
 
-        posts_data.sort(key=lambda x: (_date_key(x.get('date')), str(x.get('uid', ''))), reverse=True)
+    def render_post(fn, src_dir, out_base, u_prefix):
+        fp = os.path.join(src_dir, fn)
+        p = frontmatter.load(fp)
+        uid = _inject_uid(fp, p)
+        html, toc = _render_md(p.content)
+        post_dir = os.path.join(out_base, 'archive', uid)
+        os.makedirs(post_dir, exist_ok=True)
+        final_url = (u_prefix + f'archive/{uid}/').replace('//', '/')
+        summary = _get_meta_desc(p.content, p.get('description', ''))
+        _noindex = bool(p.get('noindex', False)) or 'noindex' in str(p.get('robots', ''))
+        tags = p.get('tags', [])
+        if isinstance(tags, str):
+            tags = [t.strip() for t in tags.split(',') if t.strip()]
+        category = _extract_category(p)
+        raw_date = p.get('date', '')
+        date_str = str(raw_date) if raw_date else ''
 
-        # ── 分类 / 标签 / 年月归档 统计（供首页侧栏渲染 + 前端筛选使用） ──
-        categories_count = {}
-        tags_count = {}
-        archive_tree = {}  # {year: {month: count}}
-        for post in posts_data:
-            cat = (post.get('category') or '').strip()
-            if cat:
-                categories_count[cat] = categories_count.get(cat, 0) + 1
-            for t in (post.get('tags') or []):
-                t = str(t).strip()
-                if t:
-                    tags_count[t] = tags_count.get(t, 0) + 1
-            d = str(post.get('date', ''))
-            if len(d) >= 7 and d[4] == '-':
-                y, m = d[:4], d[5:7]
-                archive_tree.setdefault(y, {})
-                archive_tree[y][m] = archive_tree[y].get(m, 0) + 1
+        # 优先使用手工英文版，否则构建期自动翻译（命中本地缓存毫秒级）
+        mp = manual_en_posts.get(uid) or manual_en_posts.get(fn)
+        zh_title = str(p.get('title', '') or '')
+        if mp is not None:
+            html_en, toc_en = _render_md(mp.content)
+            title_en = str(mp.get('title', '') or translator.translate_text(zh_title))
+            summary_en = _get_meta_desc(mp.content, mp.get('description', ''))
+        else:
+            title_en, summary_en = translator.translate_many([zh_title, summary])
+            html_en = translator.translate_html(html)
+            toc_en = translator.translate_html(toc)
 
-        categories_list = sorted(categories_count.items(), key=lambda kv: (-kv[1], kv[0]))
-        tags_list = sorted(tags_count.items(), key=lambda kv: (-kv[1], kv[0]))
-        archive_list = []
-        for y in sorted(archive_tree.keys(), reverse=True):
-            months = archive_tree[y]
-            archive_list.append({
-                'year': y,
-                'count': sum(months.values()),
-                'months': [{'month': m, 'count': c} for m, c in sorted(months.items(), reverse=True)],
-            })
+        category_en = translator.translate_text(category) if category else ''
+        tags_en = translator.translate_many([str(t) for t in tags]) if tags else []
 
-        try:
-            posts_per_page = max(1, int(str(config.get('posts_per_page', 9) or 9)))
-        except (TypeError, ValueError):
-            posts_per_page = 9
+        meta = {**p.metadata,
+                'url': final_url,
+                'uid': uid,
+                'title_en': title_en,
+                'content': html,
+                'content_en': html_en,
+                'toc': toc,
+                'toc_en': toc_en,
+                'summary': summary,
+                'summary_en': summary_en,
+                'description': summary,
+                'read_time': max(1, math.ceil(len(p.content) / 450)),
+                'tags': tags,
+                'tags_en': tags_en,
+                'category': category,
+                'category_en': category_en,
+                'date': date_str,
+                'is_page': False,
+                'noindex': _noindex}
+        _resolve_cover_url(meta, uid, post_bg_urls, random_img_api)
+        with open(os.path.join(post_dir, 'index.html'), 'w', encoding='utf-8') as f:
+            f.write(post_tpl.render(post=meta, i18n=I18N[lang], lang=lang,
+                                    config=config, config_en=config_en, nav_pages=nav_pages,
+                                    theme_colors=theme_colors, audio_tracks=audio_tracks))
+        return final_url, meta, _noindex
 
-        with open(os.path.join(lang_out, 'index.html'), 'w', encoding='utf-8') as f:
-            f.write(idx_tpl.render(posts=posts_data, i18n=I18N[lang], lang=lang,
-                                   config=config, nav_pages=nav_pages,
-                                   categories_list=categories_list, tags_list=tags_list,
-                                   archive_list=archive_list, posts_per_page=posts_per_page,
-                                   theme_colors=theme_colors, audio_tracks=audio_tracks))
-        all_links.append(url_prefix)
+    posts_data = []
+    post_src = os.path.join(CONTENT_DIR, 'posts', 'zh')
+    if os.path.exists(post_src):
+        fns = [f for f in os.listdir(post_src) if f.endswith('.md')]
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            futs = {ex.submit(render_post, fn, post_src, lang_out, url_prefix): fn for fn in fns}
+            for fut in as_completed(futs):
+                try:
+                    url, meta, _ni = fut.result()
+                    posts_data.append(meta)
+                    all_links.append(url)
+                    if _ni:
+                        noindex_urls.add(url)
+                    search_index.append({
+                        'title': meta.get('title', ''),
+                        'title_en': meta.get('title_en', ''),
+                        'url': url,
+                    })
+                except Exception as e:
+                    print(f"[WARN] 文章渲染错误: {e}")
 
-        valid = [s for s in search_index if s.get('title')]
-        with open(os.path.join(lang_out, 'search.json'), 'w', encoding='utf-8') as f:
-            json.dump(valid, f, ensure_ascii=False, indent=2)
+    def _date_key(val):
+        m = re.match(r'^\s*(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})', str(val or ''))
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3))) if m else (0, 0, 0)
+
+    posts_data.sort(key=lambda x: (_date_key(x.get('date')), str(x.get('uid', ''))), reverse=True)
+
+    # ── 分类 / 标签 / 年月归档 统计（含双语映射） ──
+    categories_count = {}
+    categories_en_map = {}
+    tags_count = {}
+    tags_en_map = {}
+    archive_tree = {}
+    for post in posts_data:
+        cat = (post.get('category') or '').strip()
+        if cat:
+            categories_count[cat] = categories_count.get(cat, 0) + 1
+            if cat not in categories_en_map:
+                categories_en_map[cat] = post.get('category_en') or cat
+        for idx_t, t in enumerate(post.get('tags') or []):
+            t = str(t).strip()
+            if t:
+                tags_count[t] = tags_count.get(t, 0) + 1
+                if t not in tags_en_map:
+                    t_en_list = post.get('tags_en') or []
+                    tags_en_map[t] = t_en_list[idx_t] if idx_t < len(t_en_list) else t
+        d = str(post.get('date', ''))
+        if len(d) >= 7 and d[4] == '-':
+            y, m = d[:4], d[5:7]
+            archive_tree.setdefault(y, {})
+            archive_tree[y][m] = archive_tree[y].get(m, 0) + 1
+
+    categories_list = sorted(categories_count.items(), key=lambda kv: (-kv[1], kv[0]))
+    tags_list = sorted(tags_count.items(), key=lambda kv: (-kv[1], kv[0]))
+    archive_list = []
+    for y in sorted(archive_tree.keys(), reverse=True):
+        months = archive_tree[y]
+        archive_list.append({
+            'year': y,
+            'count': sum(months.values()),
+            'months': [{'month': m, 'count': c} for m, c in sorted(months.items(), reverse=True)],
+        })
+
+    try:
+        posts_per_page = max(1, int(str(config.get('posts_per_page', 9) or 9)))
+    except (TypeError, ValueError):
+        posts_per_page = 9
+
+    with open(os.path.join(lang_out, 'index.html'), 'w', encoding='utf-8') as f:
+        f.write(idx_tpl.render(posts=posts_data, i18n=I18N[lang], lang=lang,
+                               config=config, config_en=config_en, nav_pages=nav_pages,
+                               categories_list=categories_list, categories_en_map=categories_en_map,
+                               tags_list=tags_list, tags_en_map=tags_en_map,
+                               archive_list=archive_list, posts_per_page=posts_per_page,
+                               theme_colors=theme_colors, audio_tracks=audio_tracks))
+    all_links.append(url_prefix)
+
+    valid = [s for s in search_index if s.get('title')]
+    with open(os.path.join(lang_out, 'search.json'), 'w', encoding='utf-8') as f:
+        json.dump(valid, f, ensure_ascii=False, indent=2)
+
+    # 兼容旧的 /en/ 书签：自动切换到英文模式并重定向回统一首页
+    en_out = os.path.join(OUTPUT_DIR, 'en')
+    os.makedirs(en_out, exist_ok=True)
+    with open(os.path.join(en_out, 'index.html'), 'w', encoding='utf-8') as f:
+        f.write(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">'
+            '<script>try{localStorage.setItem("cnfte_lang","en");}catch(e){}location.replace("/");</script>'
+            '<meta http-equiv="refresh" content="0;url=/"></head><body></body></html>'
+        )
+
+    translator.save()
 
     # ── SEO ──
     site_url = config.get('site_url', '').rstrip('/')

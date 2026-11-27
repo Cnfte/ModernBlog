@@ -89,6 +89,7 @@ DEFAULT_CONFIG = {
     "site_description": "",
     "enable_indexnow": True,
     "indexnow_key": "",
+    "auto_translate_en": True,
     "start_date": "2024-01-01",
     "bg_url": "",
     "post_bg_urls": "",
@@ -248,25 +249,26 @@ _HTML = r"""<!DOCTYPE html>
 <style>
 :root{
   color-scheme: dark;
-  --bg: #0b0b0e;
-  --panel: #141418;
-  --elevated: #1c1c22;
-  --input-bg: #101014;
+  /* Apple HIG Dark Appearance — Crisp Flat Surfaces & System Semantic Colors */
+  --bg: #0f1014;
+  --panel: #171920;
+  --elevated: #20232d;
+  --input-bg: #12141a;
   --border: rgba(255,255,255,0.09);
-  --border-strong: rgba(255,255,255,0.16);
-  --accent: #60a5fa;
-  --accent-bg: rgba(96,165,250,0.14);
-  --accent2: #fbbf24;
-  --accent3: #a78bfa;
-  --green: #34d399;
-  --red: #fb7185;
-  --text: rgba(255,255,255,0.95);
-  --dim: rgba(235,235,245,0.62);
-  --muted: rgba(235,235,245,0.40);
-  --r: 8px;
+  --border-strong: rgba(255,255,255,0.18);
+  --accent: #0A84FF;
+  --accent-bg: rgba(10,132,255,0.16);
+  --accent2: #FF9F0A;
+  --accent3: #BF5AF2;
+  --green: #30D158;
+  --red: #FF453A;
+  --text: rgba(255,255,255,0.96);
+  --dim: rgba(235,235,245,0.68);
+  --muted: rgba(235,235,245,0.44);
+  --r: 9px;
   --r-md: 12px;
-  --r-lg: 16px;
-  --scrollbar-thumb: rgba(255,255,255,0.22);
+  --r-lg: 14px;
+  --scrollbar-thumb: rgba(255,255,255,0.20);
   --scrollbar-track: transparent;
   --font: -apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Hiragino Sans GB","Noto Sans SC",system-ui,sans-serif;
   --mono: "SF Mono",ui-monospace,"JetBrains Mono","Fira Code",Consolas,monospace;
@@ -278,20 +280,20 @@ _HTML = r"""<!DOCTYPE html>
   ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
   ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 999px; }
 }
-::selection { background: rgba(96,165,250,0.32); color: #fff; }
+::selection { background: rgba(10,132,255,0.34); color: #fff; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: var(--font);
   background: var(--bg);
   color: var(--text);
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.55;
   height: 100dvh;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
-  grid-template-rows: 52px minmax(0, 1fr) 32px;
+  grid-template-columns: 188px minmax(0, 1fr);
+  grid-template-rows: 56px minmax(0, 1fr) 34px;
   grid-template-areas:
     "top top"
     "nav main"
@@ -348,15 +350,16 @@ a { color: var(--accent); text-decoration: none; }
   display: flex;
   align-items: center;
   gap: 10px;
+  min-block-size: 38px;
   padding: 9px 12px;
   border-radius: 10px;
-  font-size: .82rem;
+  font-size: .84rem;
   font-weight: 500;
   color: var(--dim);
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
-  transition: background-color .16s ease, color .16s ease;
+  transition: background-color .15s ease, color .15s ease;
 }
 .tab svg { width: 16px; height: 16px; stroke-width: 1.8; flex-shrink: 0; opacity: .78; }
 .tab:hover { background: rgba(255,255,255,0.055); color: var(--text); }
@@ -381,59 +384,60 @@ a { color: var(--accent); text-decoration: none; }
   min-inline-size: 0;
 }
 
-/* ── Buttons ── */
+/* ── Buttons (HIG Ergonomic Hit Targets) ── */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-block-size: 32px;
-  padding: 6px 13px;
+  min-block-size: 36px;
+  padding: 7px 14px;
   border: 1px solid var(--border);
   border-radius: var(--r);
   background: var(--elevated);
   color: var(--text);
   font-family: var(--font);
-  font-size: .78rem;
+  font-size: .8rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
   line-height: 1.2;
   transition: border-color .15s ease, background-color .15s ease, color .15s ease, transform .1s ease;
 }
-.btn svg { width: 14px; height: 14px; stroke-width: 1.9; flex-shrink: 0; }
-.btn:hover { border-color: var(--border-strong); background: rgba(255,255,255,0.09); }
-.btn:active { transform: scale(0.97); }
-.btn.primary { border-color: transparent; background: var(--accent); color: #0b0b0e; }
+.btn svg { width: 15px; height: 15px; stroke-width: 1.9; flex-shrink: 0; }
+.btn:hover { border-color: var(--border-strong); background: #282c38; }
+.btn:active { transform: scale(0.98); }
+.btn.primary { border-color: transparent; background: var(--accent); color: #fff; }
 .btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
-.btn.green { border-color: rgba(52,211,153,0.32); color: var(--green); background: rgba(52,211,153,0.10); }
-.btn.green:hover { border-color: var(--green); background: var(--green); color: #0b0b0e; }
-.btn.red { border-color: rgba(251,113,133,0.32); color: var(--red); background: rgba(251,113,133,0.10); }
+.btn.green { border-color: rgba(48,209,88,0.34); color: var(--green); background: rgba(48,209,88,0.12); }
+.btn.green:hover { border-color: var(--green); background: var(--green); color: #0f1014; }
+.btn.red { border-color: rgba(255,69,58,0.34); color: var(--red); background: rgba(255,69,58,0.12); }
 .btn.red:hover { border-color: var(--red); background: var(--red); color: #fff; }
-.btn.orange { border-color: rgba(251,191,36,0.32); color: var(--accent2); background: rgba(251,191,36,0.10); }
-.btn.orange:hover { border-color: var(--accent2); background: var(--accent2); color: #0b0b0e; }
-.btn.blue { border-color: rgba(167,139,250,0.32); color: var(--accent3); background: rgba(167,139,250,0.10); }
-.btn.blue:hover { border-color: var(--accent3); background: var(--accent3); color: #0b0b0e; }
-.btn:disabled { opacity: .35; cursor: not-allowed; transform: none; }
+.btn.orange { border-color: rgba(255,159,10,0.34); color: var(--accent2); background: rgba(255,159,10,0.12); }
+.btn.orange:hover { border-color: var(--accent2); background: var(--accent2); color: #0f1014; }
+.btn.blue { border-color: rgba(191,90,242,0.34); color: var(--accent3); background: rgba(191,90,242,0.12); }
+.btn.blue:hover { border-color: var(--accent3); background: var(--accent3); color: #fff; }
+.btn:disabled { opacity: .38; cursor: not-allowed; transform: none; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-block-end: 16px; align-items: center; }
 
-/* ── Inputs & Forms (browser-ui-theming) ── */
+/* ── Inputs & Forms (HIG Crisp Flat Controls) ── */
 input, textarea, select {
   inline-size: 100%;
+  min-block-size: 36px;
   padding: 8px 12px;
   background: var(--input-bg);
   border: 1px solid var(--border);
   border-radius: var(--r);
   color: var(--text);
   font-family: var(--font);
-  font-size: .84rem;
+  font-size: .85rem;
   outline: none;
   transition: border-color .15s ease, box-shadow .15s ease;
 }
 input::placeholder, textarea::placeholder { color: var(--muted); }
 input:focus, textarea:focus, select:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(96,165,250,0.18);
+  box-shadow: 0 0 0 3px rgba(10,132,255,0.22);
 }
 textarea { resize: vertical; min-block-size: 80px; line-height: 1.65; }
 #f-body { font-family: var(--mono); font-size: .82rem; }
@@ -1159,6 +1163,17 @@ tr.selected td { background: var(--accent-bg); color: var(--text); }
           </div>
           <p style="font-size:.68rem;color:var(--dim);margin-top:4px">构建时会在 output 根目录自动生成 {key}.txt 验证文件供搜索引擎抓取核验。</p>
         </div>
+      </div>
+    </div>
+
+    <div class="section-title">多语言自动翻译（CN / EN 内嵌双语）</div>
+    <div class="card">
+      <p style="font-size:.76rem;color:var(--dim);margin-bottom:10px;line-height:1.6">
+        启用后，构建时自动将中文文章标题、摘要与正文翻译为英文并内嵌进页面（结果缓存于 <code>content/.i18n_cache.json</code>，后续构建毫秒级命中）；访客可在前台右下角设置齿轮中一键切换 CN / EN，或默认自动跟随系统语言，无需跳转页面。
+      </p>
+      <div class="ck-wrap" style="margin-top:0">
+        <input type="checkbox" id="ck-auto-translate" data-cfg-bool="auto_translate_en">
+        <label for="ck-auto-translate" style="color:var(--text);font-size:.82rem;font-weight:600">构建时自动翻译并内嵌英文版本</label>
       </div>
     </div>
 

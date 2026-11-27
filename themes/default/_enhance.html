@@ -207,8 +207,6 @@
         padding: 0 14px;
         border-radius: var(--r-pill);
         background: var(--material-regular);
-        backdrop-filter: blur(20px) saturate(180%);
-        -webkit-backdrop-filter: blur(20px) saturate(180%);
         border: 1px solid var(--separator);
         color: var(--label-primary);
         font-size: 0.84rem;
@@ -248,8 +246,6 @@
         padding: 12px 16px;
         border-radius: 16px;
         background: var(--material-regular);
-        backdrop-filter: blur(24px) saturate(180%);
-        -webkit-backdrop-filter: blur(24px) saturate(180%);
         border: 1px solid var(--separator);
     }
     #cnfte-filter-bar.has-active-filter {
@@ -297,8 +293,6 @@
         height: 44px;
         border-radius: var(--r-pill);
         background: var(--glass-surface);
-        backdrop-filter: blur(26px) saturate(195%);
-        -webkit-backdrop-filter: blur(26px) saturate(195%);
         border: 1px solid var(--glass-border);
         box-shadow: var(--glass-rim), var(--glass-shadow);
         color: var(--label-primary);
@@ -342,8 +336,6 @@
         inset: 0;
         z-index: 3400;
         background: rgba(0, 0, 0, 0.32);
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -363,8 +355,6 @@
         padding: 20px;
         border-radius: var(--r-sheet);
         background: var(--glass-surface-strong);
-        backdrop-filter: blur(36px) saturate(200%);
-        -webkit-backdrop-filter: blur(36px) saturate(200%);
         border: 1px solid var(--glass-border);
         box-shadow: var(--glass-rim), 0 28px 68px rgba(0, 0, 0, 0.58);
         z-index: 3500;
@@ -837,20 +827,29 @@
 
 <div id="cnfte-settings-backdrop"></div>
 <div id="cnfte-settings-panel" role="dialog" aria-label="显示设置">
-    <h3><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg> 显示设置</h3>
+    <h3><svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg> <span data-i18n="settings_title">显示设置</span></h3>
 
     <div class="cs-row">
-        <span class="cs-label">侧边栏位置</span>
+        <span class="cs-label" data-i18n="settings_lang">语言 / Language</span>
+        <div class="cs-seg" data-cs-group="lang">
+            <button type="button" data-val="auto" data-i18n="lang_auto">跟随系统</button>
+            <button type="button" data-val="zh">中文</button>
+            <button type="button" data-val="en">English</button>
+        </div>
+    </div>
+
+    <div class="cs-row">
+        <span class="cs-label" data-i18n="settings_sidebar">侧边栏位置</span>
         <div class="cs-seg" data-cs-group="sidebar">
-            <button type="button" data-val="left">左侧</button>
-            <button type="button" data-val="right">右侧</button>
-            <button type="button" data-val="none">不显示</button>
+            <button type="button" data-val="left" data-i18n="sidebar_left">左侧</button>
+            <button type="button" data-val="right" data-i18n="sidebar_right">右侧</button>
+            <button type="button" data-val="none" data-i18n="sidebar_none">不显示</button>
         </div>
     </div>
 
     <div class="cs-row">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-            <label class="cs-label" for="cs-color-input" style="margin-bottom:0">主题色调色盘</label>
+            <label class="cs-label" for="cs-color-input" style="margin-bottom:0" data-i18n="settings_accent">主题色调色盘</label>
             <span id="cs-color-val" style="font-family:var(--mono, monospace);font-size:.72rem;color:var(--accent);letter-spacing:.5px;font-weight:600">{{ config.theme_color | default('#ff99cc') | upper }}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -870,8 +869,8 @@
 
     <div class="cs-row">
         <button type="button" class="cs-seg" id="cs-reset-btn"
-            style="width:100%;padding:8px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:rgba(255,255,255,.55);font-size:.7rem;cursor:pointer">
-            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>恢复默认设置
+            style="width:100%;padding:8px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:rgba(255,255,255,.65);font-size:.76rem;cursor:pointer">
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg><span data-i18n="settings_reset">恢复默认设置</span>
         </button>
     </div>
 </div>
@@ -905,8 +904,129 @@
     (function () {
         'use strict';
         const LS = {
-            sidebar: 'cnfte_sidebar', color: 'cnfte_color',
+            sidebar: 'cnfte_sidebar', color: 'cnfte_color', lang: 'cnfte_lang',
         };
+        const I18N_DICT = {
+            zh: {
+                settings_title: '显示设置',
+                settings_lang: '语言 / Language',
+                lang_auto: '跟随系统',
+                settings_sidebar: '侧边栏位置',
+                sidebar_left: '左侧',
+                sidebar_right: '右侧',
+                sidebar_none: '不显示',
+                settings_accent: '主题色调色盘',
+                settings_reset: '恢复默认设置',
+                search_placeholder: '搜索...',
+                gh_heatmap: 'GitHub 贡献热力图',
+                stat_posts: '文章总数',
+                stat_categories: '专栏分类',
+                stat_days: '运行天数',
+                stat_time: '当前时间',
+                latest_posts: '最新文章',
+                posts_unit: '篇',
+                clear_filter: '清除筛选',
+                read_unit: '分钟',
+                now_playing: '正在播放',
+                categories: '分类',
+                tags_cloud: '标签云',
+                expand_all: '展开全部',
+                archive: '归档',
+                toc: '目录',
+                back_home: '返回首页',
+                home: '首页',
+                view_notice: '查看公告',
+                site_notice_title: '站点公告',
+                anime_list: '正在追番',
+                anime_airing: '连载中',
+                anime_ended: '完结',
+                heatmap_source: '近一年活跃记录',
+                heatmap_less: '少',
+                heatmap_more: '多',
+                year_unit: '年',
+                back_years: '返回年份',
+            },
+            en: {
+                settings_title: 'Display Settings',
+                settings_lang: 'Language / 语言',
+                lang_auto: 'System',
+                settings_sidebar: 'Sidebar Position',
+                sidebar_left: 'Left',
+                sidebar_right: 'Right',
+                sidebar_none: 'Hidden',
+                settings_accent: 'Accent Color',
+                settings_reset: 'Reset Defaults',
+                search_placeholder: 'Search...',
+                gh_heatmap: 'GitHub Contributions',
+                stat_posts: 'Posts',
+                stat_categories: 'Categories',
+                stat_days: 'Uptime Days',
+                stat_time: 'Local Time',
+                latest_posts: 'Latest Posts',
+                posts_unit: 'posts',
+                clear_filter: 'Clear Filter',
+                read_unit: 'min',
+                now_playing: 'Now Playing',
+                categories: 'Categories',
+                tags_cloud: 'Tags',
+                expand_all: 'View All',
+                archive: 'Archive',
+                toc: 'Contents',
+                back_home: 'Back Home',
+                home: 'Home',
+                view_notice: 'Notice',
+                site_notice_title: 'Site Notice',
+                anime_list: 'Watching Anime',
+                anime_airing: 'Airing',
+                anime_ended: 'Finished',
+                heatmap_source: 'Activity over the past year',
+                heatmap_less: 'Less',
+                heatmap_more: 'More',
+                year_unit: '',
+                back_years: 'Back to Years',
+            }
+        };
+
+        function getLangPref() {
+            const v = localStorage.getItem(LS.lang);
+            return (v === 'zh' || v === 'en' || v === 'auto') ? v : 'auto';
+        }
+        function resolveLang() {
+            const pref = getLangPref();
+            if (pref === 'zh' || pref === 'en') return pref;
+            const langs = (navigator.languages && navigator.languages.length) ? navigator.languages : [navigator.language || 'zh'];
+            const isZh = langs.some(l => /^zh\b/i.test(String(l || '')));
+            return isZh ? 'zh' : 'en';
+        }
+        function applyLanguage() {
+            const active = resolveLang();
+            const dict = I18N_DICT[active] || I18N_DICT.zh;
+            document.documentElement.lang = active === 'en' ? 'en' : 'zh-CN';
+            document.documentElement.dataset.activeLang = active;
+
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const k = el.getAttribute('data-i18n');
+                if (k && dict[k] !== undefined) el.textContent = dict[k];
+            });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const k = el.getAttribute('data-i18n-placeholder');
+                if (k && dict[k] !== undefined) el.setAttribute('placeholder', dict[k]);
+            });
+            document.querySelectorAll('[data-zh][data-en]').forEach(el => {
+                const val = el.getAttribute(active === 'en' ? 'data-en' : 'data-zh');
+                if (val !== null && val !== '') el.textContent = val;
+            });
+            document.querySelectorAll('[data-lang-block]').forEach(el => {
+                const blk = el.getAttribute('data-lang-block');
+                el.hidden = (blk !== active);
+            });
+            // 更新文章页标题
+            const postH1 = document.querySelector('.post-header-content h1[data-zh][data-en]');
+            if (postH1) {
+                const t = postH1.getAttribute(active === 'en' ? 'data-en' : 'data-zh');
+                if (t) document.title = t;
+            }
+        }
         const DEFAULT_COLOR = document.getElementById('cs-color-input')?.value || '#ff99cc';
         // 打字机效果逐字修改 .hero-text p 的 textContent 本身也是一次 DOM 变化，
         // 如果不做处理会被下面的 MutationObserver 捕获，重新触发一轮初始化，
@@ -1033,7 +1153,12 @@
             const color = localStorage.getItem(LS.color);
             if (color) applyThemeColor(color);
 
+            applyLanguage();
             syncPanelUI();
+            const langPref = getLangPref();
+            document.querySelectorAll('[data-cs-group="lang"] button').forEach(b => {
+                b.classList.toggle('active', b.dataset.val === langPref);
+            });
         }
 
         // ── 设置面板交互 ──
@@ -1059,6 +1184,16 @@
             });
             document.addEventListener('keydown', e => {
                 if (e.key === 'Escape') setOpen(false);
+            });
+
+            panel.querySelectorAll('[data-cs-group="lang"]').forEach(group => {
+                group.querySelectorAll('button').forEach(b => {
+                    b.addEventListener('click', () => {
+                        localStorage.setItem(LS.lang, b.dataset.val);
+                        applyPersistedUI();
+                        safeRun(enhancePostBody);
+                    });
+                });
             });
 
             panel.querySelectorAll('[data-cs-group="sidebar"]').forEach(group => {
@@ -1094,6 +1229,7 @@
                 resetBtn.addEventListener('click', () => {
                     localStorage.removeItem(LS.sidebar);
                     localStorage.removeItem(LS.color);
+                    localStorage.removeItem(LS.lang);
                     document.documentElement.style.removeProperty('--accent');
                     document.documentElement.style.removeProperty('--accent2');
                     document.documentElement.style.removeProperty('--accent3');
@@ -1101,6 +1237,7 @@
                     document.documentElement.style.removeProperty('--grad2');
                     document.documentElement.style.removeProperty('--border-accent');
                     applyPersistedUI();
+                    safeRun(enhancePostBody);
                 });
             }
         }
@@ -2229,7 +2366,7 @@
 
         // ══════════ 文章正文全面增强（代码块/折叠面板/音频卡/表格/提示框/链接卡/灯箱/锚点） ══════════
         function enhancePostBody() {
-            const body = document.querySelector('.post-body');
+            const body = document.querySelector('.post-body:not([hidden])') || document.querySelector('.post-body');
             if (!body || body.dataset.enhanced) return;
             body.dataset.enhanced = '1';
 
