@@ -1026,6 +1026,9 @@
                 const t = postH1.getAttribute(active === 'en' ? 'data-en' : 'data-zh');
                 if (t) document.title = t;
             }
+            if (typeof window.__cnfteRefreshHeatmapLang === 'function') {
+                window.__cnfteRefreshHeatmapLang();
+            }
         }
         const DEFAULT_COLOR = document.getElementById('cs-color-input')?.value || '#ff99cc';
         // 打字机效果逐字修改 .hero-text p 的 textContent 本身也是一次 DOM 变化，
@@ -2175,16 +2178,37 @@
 
             const user = (card.dataset.ghUser || '').trim();
 
+            function formatCellInfo(dateStr, count, isFallback) {
+                const isEn = resolveLang() === 'en';
+                const n = Number(count) || 0;
+                if (isEn) {
+                    const unit = isFallback ? (n === 1 ? 'post' : 'posts') : (n === 1 ? 'contribution' : 'contributions');
+                    return `${dateStr} · ${n} ${unit}`;
+                }
+                return `${dateStr} · ${n} ${isFallback ? '篇文章' : '次贡献'}`;
+            }
+
+            function getDefaultCaption(isFallback) {
+                const isEn = resolveLang() === 'en';
+                if (isEn) {
+                    return isFallback ? 'Showing site posting activity' : 'Synced from GitHub Contributions';
+                }
+                return isFallback ? '已自动切换为本站文章发布活跃度' : '数据同步自 GitHub Contributions';
+            }
+
             function renderCells(days, totalCount, isFallback) {
                 if (!grid.isConnected) return;
-                const defaultCaption = isFallback ? '已自动切换为本站文章发布活跃度' : '数据同步自 GitHub Contributions';
+                grid._hmState = { totalCount, isFallback };
                 const frag = document.createDocumentFragment();
                 for (let i = 0; i < days.length; i++) {
                     const d = days[i];
                     const cell = document.createElement('span');
-                    const info = `${d.date} · ${d.count} ${isFallback ? '篇文章' : '次贡献'}`;
+                    const info = formatCellInfo(d.date, d.count, isFallback);
                     cell.className = 'hm-cell';
                     cell.dataset.level = String(d.level || 0);
+                    cell.dataset.date = d.date || '';
+                    cell.dataset.count = String(d.count || 0);
+                    cell.dataset.fallback = isFallback ? '1' : '0';
                     cell.dataset.info = info;
                     cell.title = info;
                     cell.setAttribute('aria-label', info);
@@ -2192,36 +2216,63 @@
                 }
                 grid.innerHTML = '';
                 grid.appendChild(frag);
-                if (totalEl) {
-                    totalEl.textContent = isFallback
-                        ? `近一年 ${totalCount} 篇更新`
-                        : `${totalCount.toLocaleString()} 次贡献 · 近一年`;
-                }
-                if (isFallback && titleEl) titleEl.textContent = '博客更新热力图';
-                if (sourceEl) {
-                    sourceEl.textContent = defaultCaption;
-                    sourceEl.classList.remove('active');
-                }
-                // 桌面端悬停 + 移动端点击即时显示日期与贡献数（事件委托，零额外监听开销）
+
                 let selectedCell = null;
+                let hoveredCell = null;
+                const updateHeaderAndCaption = () => {
+                    const isEn = resolveLang() === 'en';
+                    if (totalEl) {
+                        if (isFallback) {
+                            totalEl.textContent = isEn
+                                ? `${totalCount.toLocaleString()} ${totalCount === 1 ? 'post' : 'posts'} · Past year`
+                                : `近一年 ${totalCount} 篇更新`;
+                        } else {
+                            totalEl.textContent = isEn
+                                ? `${totalCount.toLocaleString()} contributions · Past year`
+                                : `${totalCount.toLocaleString()} 次贡献 · 近一年`;
+                        }
+                    }
+                    if (isFallback && titleEl) {
+                        titleEl.textContent = isEn ? 'Blog Activity Heatmap' : '博客更新热力图';
+                    }
+                    // 同步更新各格原生 title/aria-label
+                    grid.querySelectorAll('.hm-cell[data-date]').forEach(c => {
+                        const txt = formatCellInfo(c.dataset.date, c.dataset.count, c.dataset.fallback === '1');
+                        c.dataset.info = txt;
+                        c.title = txt;
+                        c.setAttribute('aria-label', txt);
+                    });
+                    showInfo(hoveredCell || selectedCell);
+                };
+
                 const showInfo = (cell) => {
                     if (!sourceEl) return;
-                    if (cell && cell.dataset.info) {
-                        sourceEl.textContent = cell.dataset.info;
+                    if (cell && cell.dataset.date) {
+                        const info = formatCellInfo(cell.dataset.date, cell.dataset.count, cell.dataset.fallback === '1');
+                        sourceEl.textContent = info;
                         sourceEl.classList.add('active');
                     } else {
-                        sourceEl.textContent = defaultCaption;
+                        sourceEl.textContent = getDefaultCaption(isFallback);
                         sourceEl.classList.remove('active');
                     }
                 };
+
+                window.__cnfteRefreshHeatmapLang = updateHeaderAndCaption;
+                updateHeaderAndCaption();
+
+                // 桌面端悬停 + 移动端点击即时显示日期与贡献数（事件委托，零额外监听开销）
                 if (!grid._hmInteractive) {
                     grid._hmInteractive = true;
                     grid.addEventListener('pointerover', (e) => {
                         if (e.pointerType === 'touch') return;
                         const cell = e.target.closest('.hm-cell');
-                        if (cell) showInfo(cell);
+                        if (cell) {
+                            hoveredCell = cell;
+                            showInfo(cell);
+                        }
                     });
                     grid.addEventListener('pointerleave', () => {
+                        hoveredCell = null;
                         showInfo(selectedCell);
                     });
                     grid.addEventListener('click', (e) => {
@@ -2230,7 +2281,7 @@
                         if (selectedCell === cell) {
                             cell.classList.remove('selected');
                             selectedCell = null;
-                            showInfo(null);
+                            showInfo(hoveredCell);
                         } else {
                             if (selectedCell) selectedCell.classList.remove('selected');
                             cell.classList.add('selected');

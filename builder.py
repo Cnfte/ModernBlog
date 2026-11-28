@@ -711,6 +711,20 @@ def build():
             en_title = str(mp.get('title', '')) if (mp and mp.get('title')) else translator.translate_text(zh_title)
             nav_pages.append({'title': zh_title, 'title_en': en_title, 'url': url})
 
+    def _normalize_date(raw_val):
+        if not raw_val:
+            return ''
+        if isinstance(raw_val, (datetime.datetime, datetime.date)):
+            return raw_val.strftime('%Y-%m-%d')
+        s = str(raw_val).strip()
+        m = re.match(r'^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(.*)$', s)
+        if m:
+            return f'{int(m.group(1)):04d}-{int(m.group(2)):02d}-{int(m.group(3)):02d}{m.group(4)}'
+        m2 = re.match(r'^(\d{4})[-/.](\d{1,2})$', s)
+        if m2:
+            return f'{int(m2.group(1)):04d}-{int(m2.group(2)):02d}'
+        return s
+
     def render_page(fn, src_dir, out_dir, u_prefix):
         fp = os.path.join(src_dir, fn)
         p = frontmatter.load(fp)
@@ -727,7 +741,7 @@ def build():
         final_url = (u_prefix + fn.replace('.md', '.html')).replace('//', '/')
         _noindex = bool(p.get('noindex', False)) or 'noindex' in str(p.get('robots', ''))
         raw_date = p.get('date', '')
-        date_str = str(raw_date) if raw_date else ''
+        date_str = _normalize_date(raw_date)
         meta = {**p.metadata,
                 'url': final_url,
                 'uid': uid,
@@ -778,7 +792,7 @@ def build():
             tags = [t.strip() for t in tags.split(',') if t.strip()]
         category = _extract_category(p)
         raw_date = p.get('date', '')
-        date_str = str(raw_date) if raw_date else ''
+        date_str = _normalize_date(raw_date)
 
         # 优先使用手工英文版，否则构建期自动翻译（命中本地缓存毫秒级）
         mp = manual_en_posts.get(uid) or manual_en_posts.get(fn)
@@ -867,21 +881,21 @@ def build():
                 if t not in tags_en_map:
                     t_en_list = post.get('tags_en') or []
                     tags_en_map[t] = t_en_list[idx_t] if idx_t < len(t_en_list) else t
-        d = str(post.get('date', ''))
-        if len(d) >= 7 and d[4] == '-':
-            y, m = d[:4], d[5:7]
+        m_dt = re.match(r'^\s*(\d{4})[-/.](\d{1,2})', str(post.get('date', '')))
+        if m_dt:
+            y, m = m_dt.group(1), f'{int(m_dt.group(2)):02d}'
             archive_tree.setdefault(y, {})
             archive_tree[y][m] = archive_tree[y].get(m, 0) + 1
 
     categories_list = sorted(categories_count.items(), key=lambda kv: (-kv[1], kv[0]))
     tags_list = sorted(tags_count.items(), key=lambda kv: (-kv[1], kv[0]))
     archive_list = []
-    for y in sorted(archive_tree.keys(), reverse=True):
+    for y in sorted(archive_tree.keys(), key=lambda v: int(v) if v.isdigit() else 0, reverse=True):
         months = archive_tree[y]
         archive_list.append({
             'year': y,
             'count': sum(months.values()),
-            'months': [{'month': m, 'count': c} for m, c in sorted(months.items(), reverse=True)],
+            'months': [{'month': m, 'count': c} for m, c in sorted(months.items(), key=lambda kv: int(kv[0]) if kv[0].isdigit() else 0, reverse=True)],
         })
 
     try:
